@@ -12,12 +12,12 @@
     font-family:-apple-system, system-ui, sans-serif; touch-action:none;
     -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
   #game { position:fixed; inset:0; display:block; }
-  /* Points (Larry 2026-11-06): big top-center number, Flappy-style.
+  /* Points (Jack 2026-11-06): big top-center number, Flappy-style.
      Luckiest Guy, bright gold gradient with a dark brown outline and
      a soft drop shadow; falls back to Arial Black with no network.
      It sits above the canvas (pointer-events none) so it never
      blocks a finger, and on every gain it pops (scale) while six
-     gold sparkles burst out of it and fade (~600ms, Larry's pick
+     gold sparkles burst out of it and fade (~600ms, Jack's pick
      over bounce/flip). The number lives in #pointsNum so the
      sparkles can anchor to it exactly. */
   #points { position:fixed; left:0; right:0; top:calc(8px + env(safe-area-inset-top));
@@ -33,7 +33,7 @@
   #reset { position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px;
     border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     border-radius:999px; padding:7px 14px; font-size:13px; }
-  /* Cartoonish home icon (Larry 2026-11-11): a little house in the
+  /* Cartoonish home icon (Jack 2026-11-11): a little house in the
      top-left corner, mirroring Reset at the top-right. A round cream
      button with the house drawn as an inline SVG (orange roof, cream
      walls, brown door, blue windows, chimney puff). */
@@ -58,7 +58,7 @@
   #logPanel button { border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     border-radius:999px; padding:7px 14px; font-size:13px; margin-right:8px; }
   #logStatus { font-size:12px; color:#7a6a55; }
-  /* Boost (temporary test button, Larry 2026-11-11): sits under LOG.
+  /* Boost (temporary test button, Jack 2026-11-11): sits under LOG.
      Opens a modal with a dropdown of point totals; picking one jumps
      the mouse to that row so the cats for that stage are on screen,
      without having to play there. Each score is a cat milestone. */
@@ -90,12 +90,12 @@
 <div id="boostPanel"><b>Boost points (test only)</b><p>Jump to a point total to see the cats for that stage — no need to play there.</p><select id="boostSelect"><option value="0">0 — No cats (start)</option><option value="5" selected>5 — Orange Tabby appears</option><option value="20">20 — + Black Cat</option><option value="50">50 — + Cream Calico</option><option value="100">100 — + White Cat (all 4)</option><option value="150">150 — up to 2 cats per row</option><option value="200">200 — up to 3 cats per row</option><option value="250">250 — up to 4 cats per row</option></select><div><button id="boostApply" type="button">Boost</button><button id="boostClose" type="button">Close</button></div></div>
 <script>
 "use strict";
-// QA TOOLS (Larry 2026-11-11): Reset, LOG and BOOST are test
+// QA TOOLS (Jack 2026-11-11): Reset, LOG and BOOST are test
 // tools, not part of the real game. Keep the components, hide
 // the buttons: flip this to false and the three buttons on the
 // right disappear (their panels stay in the code, just
 // unreachable from the screen). The developer flips it per
-// environment — true while Larry is testing, false for the
+// environment — true while Jack is testing, false for the
 // real game. The home icon is not a QA tool; it always shows.
 const QA_TOOLS = true;
 if (!QA_TOOLS){
@@ -107,10 +107,10 @@ if (!QA_TOOLS){
 // ============================================================
 // MOUSE RAMP — ENDLESS (2026-10-26, built on the MVP engine)
 // Flappy-simple, one-input game. INFINITE vertical climb: rows are
-// generated on the fly under Larry's n/N/x rule, and the frame
+// generated on the fly under Jack's n/N/x rule, and the frame
 // auto-scrolls at a fixed speed once the mouse reaches mid-screen.
 //
-// The mouse (Larry's footless mouse sprites) ALWAYS runs. He starts
+// The mouse (Jack's footless mouse sprites) ALWAYS runs. He starts
 // at the base running left and right, turning at the walls.
 //  · Finger down  -> he runs TOWARD the finger.
 //  · Fingertip (a small round touch) BLOCKING him -> he bumps it
@@ -123,16 +123,16 @@ if (!QA_TOOLS){
 //    and keeps running in the direction he was running.
 //
 // Level: endless rows of horizontal ledges, generated as the frame
-// scrolls. Row spacing is equal — every row 192px apart (Larry
+// scrolls. Row spacing is equal — every row 192px apart (Jack
 // 2026-11-04; was random 1–3 inches, 96–288px); every
 // row has gaps ≥ 100px and segments ≥ 60px (mouse-width to stand
-// on), gaps vary in width, and ~40% of rows have two gaps (Larry
+// on), gaps vary in width, and ~40% of rows have two gaps (Jack
 // 2026-11-01). A new row is accepted only if its worst-case travel n_i
 // (the farthest the mouse could have to run from any gap he could
 // arrive through to the nearest usable gap above) is <= x_max =
 // s*h/a — the stress-test rule, so no generated row is ever a
 // no-win. Scroll runs at its pace even while he's on a ramp
-// (Larry 2026-10-28: the autoscroll should continue and not
+// (Jack 2026-10-28: the autoscroll should continue and not
 // stop). Death: he falls below the screen.
 //
 // Finger model (honest, same as the pet prototype): a phone gives
@@ -142,7 +142,7 @@ if (!QA_TOOLS){
 // mouse: press-and-drag draws the ramp between press point and
 // cursor.
 //
-// FIX 2026-10-23 (Larry: "diagonal finger doesn't become a ramp"):
+// FIX 2026-10-23 (Jack: "diagonal finger doesn't become a ramp"):
 // three stacked causes — (1) iOS can fire touchstart BEFORE
 // pointerdown, and the old patch handler dropped the patch if the
 // press hadn't registered yet, so a still-held finger stayed a
@@ -155,7 +155,7 @@ if (!QA_TOOLS){
 // core, not the whole finger. (3) The step-up tolerance (26px)
 // was thinner than a finger; it's now ~a finger's thickness.
 //
-// FIX 2 2026-10-23 (still failing on Larry's phone): stop relying
+// FIX 2 2026-10-23 (still failing on Jack's phone): stop relying
 // on the patch ellipse alone — its orientation data is unreliable
 // across devices. A touch that MOVES now defines the ramp from
 // its own path: when you lay a finger down, the touch point
@@ -167,7 +167,7 @@ if (!QA_TOOLS){
 // Gesture: touch at one end of the ramp you want, slide a short
 // way along it, hold.
 //
-// FIX 3 2026-10-23 — MEASURED on Larry's iPhone via Touch Lab:
+// FIX 3 2026-10-23 — MEASURED on Jack's iPhone via Touch Lab:
 // rotationAngle is ALWAYS 0.0° and radiusY can read 0.0; the
 // PointerEvent contact size is a square (97x97). So the patch
 // ellipse carries NO orientation on his device — the old code
@@ -183,14 +183,14 @@ if (!QA_TOOLS){
 // ============================================================
 
 const CFG = {
-  speed: 0,            // derived below from the speed formula s/a = L/h (Larry 2026-11-05)
+  speed: 0,            // derived below from the speed formula s/a = L/h (Jack 2026-11-05)
   gravity: 1900,       // px/s^2 while falling
   climb: 54,           // px he can step up/down onto a ramp edge (~finger thickness)
   transfer: 40,        // px ledge-height tolerance stepping off a ramp
   faceH: 14,           // drawn platform height — a line ending on the platform's visible face counts as connecting
   edgeSnap: 48,        // px: a ramp's far end may miss a platform's edge by this much and still count as landing on it
   snapR: 64,          // B: auto-snap radius — a drawn endpoint within this of his platform / an edge above snaps to it
-  maxRampDeg: 88,      // Larry 2026-11-05: so long as the line isn't vertical, it should be good — only a line within 1.5deg of vertical is rejected (was 70)
+  maxRampDeg: 88,      // Jack 2026-11-05: so long as the line isn't vertical, it should be good — only a line within 1.5deg of vertical is rejected (was 70)
   lookahead: 400,      // px of generated rows kept above the screen top
   halfW: 27,           // mouse body half-width for support/collision
   bodyH: 66,           // mouse body height
@@ -219,13 +219,13 @@ function fitCanvas(){
 
 // ---------- world (endless) ----------
 let groundY = 0, platforms = [], rows = [];
-let scrolling = false, bestRow = 0, points = 0; // points: Flappy-style score (Larry 2026-11-06) — highest row reached, each row counting once
-let clouds = []; // soft rounded clouds (Larry 2026-11-06) — screen-space decoration, behind everything
-const SCROLL_A = 60; // px/s, fixed frame scroll — slowed 50% from 120 (Larry 2026-11-05)
-// Equal row spacing (Larry 2026-11-04): every row is 192px
+let scrolling = false, bestRow = 0, points = 0; // points: Flappy-style score (Jack 2026-11-06) — highest row reached, each row counting once
+let clouds = []; // soft rounded clouds (Jack 2026-11-06) — screen-space decoration, behind everything
+const SCROLL_A = 60; // px/s, fixed frame scroll — slowed 50% from 120 (Jack 2026-11-05)
+// Equal row spacing (Jack 2026-11-04): every row is 192px
 // apart (was random 96–288px).
 const ROW_H = 192;
-// Speed formula, capped platform (Larry 2026-11-05): the mouse
+// Speed formula, capped platform (Jack 2026-11-05): the mouse
 // speed no longer depends on W. His premise L = (W-g)+d made s
 // grow with the screen (445 on his iPad vs 158 on his iPhone),
 // so the run is now capped at the longest platform the
@@ -246,7 +246,7 @@ const PATH_D = Math.sqrt(ROW_H * ROW_H + GAP_G * GAP_G); // diagonal, 216.5 at h
 const PATH_L = PLATFORM_CAP + PATH_D; // full path, 436.5 at M=220 — no W in it
 const SPEED_RATIO = PATH_L / ROW_H; // ~2.27
 CFG.speed = Math.round(SCROLL_A * SPEED_RATIO); // 136 at a=60, on any screen width
-// Speed ramp (Larry 2026-11-09): the game speeds up as he
+// Speed ramp (Jack 2026-11-09): the game speeds up as he
 // climbs — the scroll gains RAMP_PER_ROW for every row
 // reached, up to RAMP_MAX_A. The mouse speed follows the
 // formula (s = a*L/h), so the climb timing stays right and
@@ -265,7 +265,7 @@ function applySpeedRamp(){
 }
 const FOOTPRINT = 1 / Math.tan(CFG.maxRampDeg * Math.PI / 180); // ~0.035: horizontal run a max-slope climb needs (was ~0.364 at 70deg)
 const rnd = (a, b) => a + Math.random() * (b - a);
-// Mouse traps (Larry 2026-11-09, death on touch): a trap is a
+// Mouse traps (Jack 2026-11-09, death on touch): a trap is a
 // hazard on a platform — touching it ends the run. At most one
 // per row, only on some rows (TRAP_P), never in the first few
 // rows (TRAP_MIN_ROW), and only on a segment long enough to
@@ -279,7 +279,7 @@ const TRAP_P = 0.5; // a qualifying row gets a trap half the time
 const TRAP_MIN_ROW = 4; // no traps in the first three rows
 const TRAP_MIN_SEG = 120; // segment must be this long to hold a trap
 const TRAP_EDGE = 55; // trap centre stays this far from each end
-// Ball cats (Larry 2026-11-10, villains/obstacles for Mousy Run):
+// Ball cats (Jack 2026-11-10, villains/obstacles for Mousy Run):
 // a cat is a ball about the mouse's size, walking a platform.
 // Each colour joins the pool at its own row (CAT_COLOR_ROW):
 // Orange Tabby from 5, Black from 20, Cream Calico from 50,
@@ -292,7 +292,7 @@ const TRAP_EDGE = 55; // trap centre stays this far from each end
 // then up to 2 at 150, 3 at 200, 4 at 250 (catMaxForRow) —
 // a failsafe so the late game doesn't get boring, even though
 // most players will never get that high — but only one cat per
-// platform (Larry 2026-11-11): a row may hold several cats,
+// platform (Jack 2026-11-11): a row may hold several cats,
 // each on its own segment, never two on the same one. Each cat
 // slot rolls CAT_P on its own, and a cat only lands on a
 // segment long enough to leave a way past on either side
@@ -307,7 +307,7 @@ const TRAP_EDGE = 55; // trap centre stays this far from each end
 const CAT_HALF = 24; // cat is 48px wide, centred on its x
 const CAT_P = 0.5; // each cat slot rolls this to appear
 const CAT_MIN_ROW = 5; // no cats before 5 points — Orange Tabby
-// joins here (Larry 2026-11-10: the staggered schedule starts
+// joins here (Jack 2026-11-10: the staggered schedule starts
 // where a casual player actually gets to; the bot's median run
 // ends around row 8-9, so row 5 is where most runs meet a cat).
 const CAT_COLOR_ROW = [5, 20, 50, 100]; // colour 1-4, first row it may appear: 1 Orange Tabby, 2 Black, 3 Cream Calico, 4 White
@@ -316,12 +316,12 @@ const CAT_MIN_SEG = 140; // segment must be this long to hold a cat
 const CAT_EDGE = 60; // a cat is placed this far from each end
 const CAT_DRAW = 64; // cat sprite draw size (the ball reads ~48px)
 const CAT_COLORS = ['cat-orange','cat-black','cat-calico','cat-white']; // colour 1-4, base name
-const CAT_FRAMES = 3; // walk-cycle frames per colour: 1 normal, 2 squash, 3 stretch (Larry 2026-11-11: animated cats, white background removed)
+const CAT_FRAMES = 3; // walk-cycle frames per colour: 1 normal, 2 squash, 3 stretch (Jack 2026-11-11: animated cats, white background removed)
 // Frame sprites, as literal filenames so the standalone builder
 // inlines them as data URIs (it replaces the literal string).
 // A dynamically built filename would not be replaced, so the
 // lookup must use these same literals.
-// Every colour is a clone of the mouse running (Larry
+// Every colour is a clone of the mouse running (Jack
 // 2026-11-11): the mouse's ball body, no tail, a big white
 // eye with a black pupil, with each cat's own fur, ears and
 // face. 1 Orange Tabby, 2 Black, 3 Cream Calico, 4 White.
@@ -340,7 +340,7 @@ function catColorsForRow(idx){
   for (const r of CAT_COLOR_ROW) if (idx >= r) n++;
   return n;
 }
-// How many cats a row may hold at most (Larry 2026-11-10).
+// How many cats a row may hold at most (Jack 2026-11-10).
 function catMaxForRow(idx){
   if (idx >= 250) return 4;
   if (idx >= 200) return 3;
@@ -350,7 +350,7 @@ function catMaxForRow(idx){
 
 // Random row gaps — same rules as stress_test.py: segments >= 60px,
 // gaps >= 100px, tiling the full width W. Gap widths are
-// inconsistent on purpose (Larry 2026-11-01): single-gap rows
+// inconsistent on purpose (Jack 2026-11-01): single-gap rows
 // draw gaps in [100,260]px (was [100,170]px), and ~40% of rows
 // are multi-gap rows — smaller pieces so two gaps fit (phone
 // widths fit at most two: 2 gaps + 3 segments need 380px at the
@@ -371,7 +371,7 @@ function genRowGaps(){
     // on a 430px phone) — wider multi pieces almost never fit,
     // which is why a first pass with roomy ranges produced zero
     // multi-gap rows in 2000 generated rows.
-    // Multi-gap pieces grow with screen width (Larry 2026-11-06):
+    // Multi-gap pieces grow with screen width (Jack 2026-11-06):
     // on a phone they must stay near the floor — two gaps (100px
     // each) plus three pieces (60px each) need 380px minimum — but
     // on a wide screen the same small pieces chop every row into
@@ -442,7 +442,7 @@ function pushRow(gaps, y, idx){
     cur = Math.max(cur, g.c + g.w / 2);
   }
   if (W - cur > 1){ const p = { x1: cur, x2: W, y, row: idx }; platforms.push(p); segs.push(p); }
-  // Mouse trap (Larry 2026-11-09): at most one per row, only on
+  // Mouse trap (Jack 2026-11-09): at most one per row, only on
   // some rows, never in the first few, and only on a segment
   // long enough to leave a way past on either side.
   if (idx >= TRAP_MIN_ROW && Math.random() < TRAP_P){
@@ -452,12 +452,12 @@ function pushRow(gaps, y, idx){
       p.trapX = rnd(p.x1 + TRAP_EDGE, p.x2 - TRAP_EDGE); // float, not rounded: rounding could push it past the edge margin
     }
   }
-  // Ball cats (Larry 2026-11-10): each cat slot rolls CAT_P
+  // Ball cats (Jack 2026-11-10): each cat slot rolls CAT_P
   // on its own, up to catMaxForRow(idx) cats on the row. The
   // colour is picked from the colours unlocked at this row
   // (catColorsForRow). A cat never shares a segment with a
   // trap, so a row can hold both on different segments, and
-  // only one cat per platform (Larry 2026-11-11): a cat only
+  // only one cat per platform (Jack 2026-11-11): a cat only
   // lands on a segment with no cat yet, so a row may hold
   // several cats but each on its own segment. If every roomy
   // segment already has one, the row simply holds fewer cats
@@ -481,7 +481,7 @@ function buildWorld(){
   groundY = H - 44;
   platforms = []; rows = []; scrolling = false; bestRow = 0; points = 0;
   curA = SCROLL_A; CFG.speed = Math.round(SCROLL_A * SPEED_RATIO); // fresh run: base speed, ramp restarts
-  // clouds (Larry 2026-11-06): four soft rounded whites in fixed
+  // clouds (Jack 2026-11-06): four soft rounded whites in fixed
   // height bands across the upper sky, drifting slowly left in
   // screen space — decoration only, never part of the world (no
   // scroll/follow, no collision). Fresh sky on every Reset/resize.
@@ -504,7 +504,7 @@ function setScore(delta){
   if (el){
     el.textContent = points;
     if (delta > 0){
-      // pop + sparkle burst (Larry 2026-11-06)
+      // pop + sparkle burst (Jack 2026-11-06)
       if (el.animate) el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: 300 });
       burstSparkles(el);
     }
@@ -557,15 +557,15 @@ const S = {
   fallFrom: null,           // platform he ran off (for the fall-landing gate: a finger line is only landable while falling if it touches the surface he fell from)
   rampDir: 1,               // committed ramp direction, locked at mount — nothing turns him mid-ramp
   rampFinger: null,           // finger object he mounted the current ramp with (a new press replacing a LIVE line drops him, it never snaps him; a kept line stays — drawing another while embarked doesn't jump him off)
-  keptSeg: null,            // the one line left behind after lifting — stays until used up or deleted (one line for now, Larry 2026-11-09: a new draw replaces it)
+  keptSeg: null,            // the one line left behind after lifting — stays until used up or deleted (one line for now, Jack 2026-11-09: a new draw replaces it)
   keptSeg2: null,           // dormant under one line (never set; the two-line code that reads it is inert — restoring two lines is just release())
   rampSlot: null,           // which kept slot he is climbing (1) or 'live' — so releasing mid-climb doesn't switch him to the other kept line
-  climbSeg: null,           // the line he is climbing right now — set on mount, cleared when he leaves the finger surface. The kept slot may be replaced by a new draw while he is on it (Larry 2026-11-09: you can draw a new line while climbing a locked line), so the climb reads this, not the kept slot, or he would switch to the new line.
+  climbSeg: null,           // the line he is climbing right now — set on mount, cleared when he leaves the finger surface. The kept slot may be replaced by a new draw while he is on it (Jack 2026-11-09: you can draw a new line while climbing a locked line), so the climb reads this, not the kept slot, or he would switch to the new line.
   deletePress: false,        // this press tapped the kept line's circled x: it deletes, it doesn't draw
 };
 S.y = groundY;
 
-// ---------- play log (Larry 2026-10-27: monitoring session) ----------
+// ---------- play log (Jack 2026-10-27: monitoring session) ----------
 // Every decision the engine makes, in one place: when a defect
 // happens, tap LOG and paste this into chat — it pins the exact
 // frame, segment, and decision instead of a description. Capped at
@@ -635,7 +635,7 @@ function reset(){
   banner.style.display = 'none';
 }
 document.getElementById('reset').addEventListener('click', reset);
-// Boost (temporary test helper, Larry 2026-11-11): jump to a point
+// Boost (temporary test helper, Jack 2026-11-11): jump to a point
 // total so the cats for that stage are on screen, without having
 // to play there. Regenerates the world up to the target row, shifts
 // it so the target row sits on screen, and puts the mouse on a safe
@@ -690,7 +690,7 @@ function boostToRow(target){
   });
   if (close && close.addEventListener) close.addEventListener('click', () => { if (panel) panel.style.display = 'none'; });
 })();
-// Cartoonish home icon (Larry 2026-11-11): a little house in the
+// Cartoonish home icon (Jack 2026-11-11): a little house in the
 // top-left corner. Inside the homescreen's game views the parent's
 // own Home button is the way home, so this one hides in an iframe;
 // as a lone file (the endless card) it restarts the run — back to
@@ -765,7 +765,7 @@ function clearKept(seg){
   if (seg === S.keptSeg){ S.keptSeg = S.keptSeg2; S.keptSeg2 = null; }
   else if (seg === S.keptSeg2){ S.keptSeg2 = null; }
 }
-// ---------- B: auto-snap (endless only, Larry 2026-10-27) ----------
+// ---------- B: auto-snap (endless only, Jack 2026-10-27) ----------
 // A (the MVP behavior) uses the drawn line exactly. B snaps a drawn
 // line to real anchors when both ends are actually aimed near them:
 // the start end to the nearest point on the platform he stands on,
@@ -778,10 +778,10 @@ function clearKept(seg){
 // targets); the lock is keyed by finger object, so a new press
 // always re-evaluates. A raw climbed line keeps morphing as today.
 let snapLock = null;
-let startLock = null; // Larry 2026-10-28: the line's start, locked at finger-down to his platform (a world point); rides scroll/follow even off-screen; only the end is drag-controlled
-let nodeLock = null; // Larry 2026-10-29 (from the Line Lab): the line's start, locked at press to a NODE (a platform end leading to a gap), exactly; rides scroll/follow like startLock; the far end snaps to a node it ends in
+let startLock = null; // Jack 2026-10-28: the line's start, locked at finger-down to his platform (a world point); rides scroll/follow even off-screen; only the end is drag-controlled
+let nodeLock = null; // Jack 2026-10-29 (from the Line Lab): the line's start, locked at press to a NODE (a platform end leading to a gap), exactly; rides scroll/follow like startLock; the far end snaps to a node it ends in
 let lastNodeFarKey = null; // snapped far node identity, for once-per-node SNAP logging
-let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Larry 2026-11-02)
+let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Jack 2026-11-02)
 const NODE_R = 28;    // node snap radius (lab parity)
 const NODE_DRAW = 11; // node circle radius on screen
 function snapCrosses(snapped, fromX, dir){
@@ -832,12 +832,12 @@ function snapLive(seg){
   return null;
 }
 
-// Nodes (Larry 2026-10-29, from the Line Lab): a circle only at a
+// Nodes (Jack 2026-10-29, from the Line Lab): a circle only at a
 // platform end leading to a gap, from either direction. Game rows
 // tile [0,W] except gaps, so an interior edge always leads to a
 // gap; screen-border ends and the ground (full width) get none.
 // Derived from the platforms each call, so they ride scroll/follow.
-// Nodes sit CENTERED on the platform's drawn line (Larry
+// Nodes sit CENTERED on the platform's drawn line (Jack
 // 2026-11-01: dots centered on the edges, not too far down or
 // up). Platforms draw as a 14px rect from p.y, so the dot's
 // center is p.y + faceH/2 — not p.y itself (the top edge,
@@ -867,7 +867,7 @@ function nearestNode(x, y, radius, exX, exY){
 // Fully node-connected: BOTH ends sit on (distinct) nodes. A
 // node-drawn line whose far end floats short of a node — even
 // one that would land via edge-snap or face tolerance — is NOT
-// fully connected, so it must not show green (Larry 2026-10-29:
+// fully connected, so it must not show green (Jack 2026-10-29:
 // a line not fully connected to a node turns green). The
 // tolerance landing still works (the exit lands him); only the
 // color's promise tightens.
@@ -878,14 +878,14 @@ function segNodeConnected(seg){
   return Math.hypot(a.x - b.x, a.y - b.y) >= 1;
 }
 
-// Far-end node snap for ANY line (Larry 2026-11-02): if the
+// Far-end node snap for ANY line (Jack 2026-11-02): if the
 // finger ends within NODE_R of a node (other than the line's
 // start), the far end snaps to that node — the node wins over
 // a B edge snap. Fires the SNAP log + snap flash once per
 // node (keyed by node identity, shared with the nodeLock
 // branch, which now goes through here too). Returns the seg
 // with its far end replaced, or the seg unchanged.
-// B edge on a node-edge (Larry 2026-11-02): B and node snap
+// B edge on a node-edge (Jack 2026-11-02): B and node snap
 // to TWO points for the SAME edge — B to the top (x, p.y),
 // the node to the center (x, p.y+7). A B-snapped far end
 // sitting on an edge that HAS a node is moved onto the node
@@ -912,7 +912,7 @@ function farNodeSnap(seg){
   if (!n){ lastNodeFarKey = null; return seg; }
   const out = { ...seg, bx: n.x, by: n.y };
   if (out.len !== undefined) out.len = Math.hypot(out.bx - out.ax, out.by - out.ay);
-  // A snap must not promise what the line can't do (Larry
+  // A snap must not promise what the line can't do (Jack
   // 2026-11-05: a line snapped to a node but stayed amber
   // because it was too steep to climb) — like the B snap, a
   // node snap only fires when the snapped line is climbable.
@@ -928,11 +928,11 @@ function farNodeSnap(seg){
   return out;
 }
 
-// Nodes a green line snaps into (Larry 2026-11-02): the far
+// Nodes a green line snaps into (Jack 2026-11-02): the far
 // node of a line that is green AND snapped into that node.
 // Live line + kept lines both count. The far end must
 // COINCIDE with a node (snapped, ~0px) — not merely sit near
-// one: a raw far end 7px from a node (Larry 2026-11-02: his
+// one: a raw far end 7px from a node (Jack 2026-11-02: his
 // ground-start line ended 7px from a node but was not
 // snapped) must NOT turn the node green. Excludes the start
 // node. Any green line qualifies, whether or not it started
@@ -962,12 +962,12 @@ function fingerSegment(){
   // disembarked: the line is gone for THIS press, even if the finger
   // is still down — a new line needs a new press (lift + touch).
   // Only that finger is spent; another finger held across the
-  // disembark keeps its line (Larry 2026-10-28: continue onto the
+  // disembark keeps its line (Jack 2026-10-28: continue onto the
   // next ramp).
   if (S.finger && S.finger === S.spentFinger) return null;
   const live = liveSegment();
   if (live){
-    // One line (Larry 2026-11-09, for now): at most one line on
+    // One line (Jack 2026-11-09, for now): at most one line on
     // screen. A still point never disturbs the kept line;
     // point+drag draws a new line that REPLACES the kept one on
     // release (it no longer adds a second). The two-line cap
@@ -980,18 +980,18 @@ function fingerSegment(){
     // B: a snapped line locks for this press once he is on it or
     // falling toward it; a raw climbed line keeps morphing as today
     // — but if the drag moves it into a snap target, it snaps
-    // mid-climb (Larry 2026-10-28: a line dragged toward a platform
+    // mid-climb (Jack 2026-10-28: a line dragged toward a platform
     // edge never snapped, because mounting a raw line returned it
     // before snap was tried) and then locks, so it can't jump again
     if ((S.surface.type === 'finger' || S.surface.type === 'air') && snapLock && snapLock.finger === S.finger) return snapLock.seg;
-    // Two-line cap (Larry 2026-10-28), dormant under one line:
+    // Two-line cap (Jack 2026-10-28), dormant under one line:
     // it fires only when both kept slots are full, and keptSeg2
     // is never set now. Climbing a live line (rampFinger) is not
     // a new line, so it is never blocked; a blocked drag returns
     // the first kept line, so the press neither draws nor
     // disturbs his climb.
     if (S.keptSeg && S.keptSeg2 && fromMovement && !(S.surface.type === 'finger' && S.finger === S.rampFinger)) return S.keptSeg;
-    // Nodes (Larry 2026-10-29): a press on a node locks the start
+    // Nodes (Jack 2026-10-29): a press on a node locks the start
     // to it exactly (no guard — pressing on a node is choosing
     // it); the far end snaps to a node it ends in. Both endpoints
     // in nodes always snap — no green filter; the color judges
@@ -1003,7 +1003,7 @@ function fingerSegment(){
       out.node = true; // provenance: this line was drawn from a node — its green requires full node connection
       return out;
     }
-    // Start lock (Larry 2026-10-28): finger down locks the start.
+    // Start lock (Jack 2026-10-28): finger down locks the start.
     // Once the press point is within snapR of his platform, the
     // start is that platform point, rides the world (scroll/follow
     // shift it, even off-screen), and never disengages; only the
@@ -1012,13 +1012,13 @@ function fingerSegment(){
       const fp0 = S.finger;
       // Press point: mouse presses carry dragA, touch presses carry
       // anchor (dragA is null on touch — requiring dragA meant the
-      // lock never fired on touch at all, Larry 2026-10-28). Only a
+      // lock never fired on touch at all, Jack 2026-10-28). Only a
       // real drag locks, matching mouse (a still point gives no live
       // line there; a still touch lay must not lock either).
       const pp = fp0 && (fp0.dragA || fp0.anchor);
       if (pp && fromMovement) {
         // The start anchors to the NEAREST platform within snapR —
-        // not just the one he stands on. Larry 2026-10-28: a line
+        // not just the one he stands on. Jack 2026-10-28: a line
         // drawn on the platform he is about to land on (pressed
         // while still climbing) must ride that platform as it
         // scrolls, or it detaches and can never be mounted from it.
@@ -1044,7 +1044,7 @@ function fingerSegment(){
           // press is already over the platform AND the foot falls
           // over a gap: clamping is then a purely vertical lift onto
           // the top that CREATES the foot on the platform instead of
-          // moving one (Larry's line 4). It is blocked when the
+          // moving one (Jack's line 4). It is blocked when the
           // press sits past the edge (clamping would pull a front
           // line back onto the platform, M5) or the foot is ON the
           // platform (clamping would move a real foot and lose the
@@ -1084,7 +1084,7 @@ function fingerSegment(){
         far = { x: e.x, y: e.y };
         break;
       }
-      // Far-node snap wins over the B edge above (Larry
+      // Far-node snap wins over the B edge above (Jack
       // 2026-11-02: any line's far end snaps into a node).
       const out = farNodeSnap({ ax: stx, ay: sty, bx: far.x, by: far.y });
       out.len = Math.hypot(out.bx - out.ax, out.by - out.ay);
@@ -1134,7 +1134,7 @@ function segSpan(seg){ return [Math.min(seg.ax, seg.bx), Math.max(seg.ax, seg.bx
 // y-range over the overlap of the segment's span and the surface's
 // span must meet [top-climb, top+climb] — a step up or down, the
 // same tolerance mounting itself uses. Exact touch proved too strict
-// for finger drawing (Larry 2026-10-26: green never showed): a press
+// for finger drawing (Jack 2026-10-26: green never showed): a press
 // lands on the mouse's body, up to a finger's width above the
 // platform line, not pixel-perfect on it. What still counts as NOT
 // connected: no horizontal overlap with his platform at all (a line
@@ -1156,7 +1156,7 @@ function segTouchesSurface(seg, surf){
 }
 
 // foot of a line on a surface: where the segment meets the surface's
-// height (Larry 2026-10-26: a line drawn in front mounts only at its
+// height (Jack 2026-10-26: a line drawn in front mounts only at its
 // foot, from the side where it makes the largest angle with the
 // surface, and only if it touches a surface). Returns the foot point
 // and the far (climb-target) end's x: the crossing point when the
@@ -1168,7 +1168,7 @@ function segTouchesSurface(seg, surf){
 // a flat line running right), which could be the FAR end when he
 // stood past the near one — so a bridge drawn back from the platform
 // edge he just landed on was unmountable, and he ran past it off the
-// edge instead of turning toward it (Larry 2026-11-09 log).
+// edge instead of turning toward it (Jack 2026-11-09 log).
 function segFoot(seg, surfY, dir, mx){
   let fx, fy, farX;
   if (seg.by !== seg.ay){
@@ -1196,26 +1196,26 @@ function segFoot(seg, surfY, dir, mx){
 // already handles it). Returns {x, y, plat} or null.
 // GREEN PREDICTION — green means the line can be mounted AND
 // its far end LANDS somewhere new: exact touch, edge snap, or
-// step-up/face landing (Larry 2026-10-27: the exit's own landing
+// step-up/face landing (Jack 2026-10-27: the exit's own landing
 // check, so the indicator can never disagree with what the exit
 // actually does); a DROP must land strictly above the origin
-// (Larry 2026-10-29: drops below or to the same row stay amber).
+// (Jack 2026-10-29: drops below or to the same row stay amber).
 // Amber therefore no longer means "will fall": it means "not
 // fully connected" (snap/drop lines still land; only lines that
-// miss everything fall). EXCEPTION (Larry 2026-10-29): a line
+// miss everything fall). EXCEPTION (Jack 2026-10-29): a line
 // drawn from a node is green only when FULLY node-connected —
 // both ends on nodes — because a floating far end that lands
 // via edge-snap or face tolerance visibly ISN'T connected to a
 // node, even though he would still land.
 // Travel direction: his locked ramp direction on a ramp, else the
 // mount rule (toward the far end from the point nearest him).
-// shared far-edge landing check (Larry 2026-10-27: landing lines
+// shared far-edge landing check (Jack 2026-10-27: landing lines
 // are green): the exit's plat/drop search, used by BOTH the engine's
 // far-edge exit and the green prediction, so the indicator can never
 // disagree with what the exit actually does. Returns {plat} (steps
 // on: exact touch, edge snap, or step-up) or {drop} (drops vertically
 // onto a platform below), or null (falls off the far edge).
-// Mouse trap (Larry 2026-11-09, death on touch): his body
+// Mouse trap (Jack 2026-11-09, death on touch): his body
 // touches the trap when his centre is within the trap's
 // half-width plus his half-width of the trap's centre. The
 // ground never has a trap.
@@ -1223,7 +1223,7 @@ function trapAt(plat, x){
   if (!plat || plat.type === 'ground' || plat.trapX === undefined || plat.trapX === null) return false;
   return Math.abs(x - plat.trapX) < TRAP_HALF + CFG.halfW;
 }
-// Ball cats (Larry 2026-11-10, villains/obstacles): his body
+// Ball cats (Jack 2026-11-10, villains/obstacles): his body
 // touches the cat when his centre is within the cat's
 // half-width plus his half-width of the cat's centre. The
 // ground never has a cat.
@@ -1291,7 +1291,7 @@ function exitLanding(endX, endY){
 
 function lineWillLand(seg){
   if (!seg || !segClimbable(seg)) return false;
-  // Node-drawn lines (Larry 2026-10-29): green only when fully
+  // Node-drawn lines (Jack 2026-10-29): green only when fully
   // node-connected. Non-node lines (B snap, start-lock, raw)
   // are judged exactly as before.
   if (seg.node && !segNodeConnected(seg)) return false;
@@ -1342,7 +1342,7 @@ function lineWillLand(seg){
     // it (kept line) the foot must lie within the mountable interval
     // [a,b] — which already reaches one mount-grace behind him, so a
     // foot just behind him (a bridge back from the edge he just
-    // landed on) counts, and he turns toward it (Larry 2026-11-09).
+    // landed on) counts, and he turns toward it (Jack 2026-11-09).
     // The old rule demanded the foot lie ahead in his running
     // direction, which made a bridge behind him amber even though
     // he mounts it.
@@ -1385,7 +1385,7 @@ function lineWillLand(seg){
   // so it can't be fully connected — amber, even if the crossing
   // drop would land him on a platform below
   if (block) return false;
-  // far end must LAND him somewhere NEW (Larry 2026-10-27: a
+  // far end must LAND him somewhere NEW (Jack 2026-10-27: a
   // drop back onto the platform he started from is not progress —
   // it showed green and dropped him where he began, which reads
   // as falling off): the exit's own landing check, but a landing
@@ -1393,7 +1393,7 @@ function lineWillLand(seg){
   // no new landing (open air, below a face, or back to origin)
   // stays amber. The exit itself still drops him back safely;
   // only the color's promise changes. (Horizontal moves count:
-  // Larry 2026-10-28 — a same-row landing is green.)
+  // Jack 2026-10-28 — a same-row landing is green.)
   const [lo, hi] = segSpan(seg);
   const endX = dir > 0 ? hi : lo;
   const endY = segYAt(seg, endX);
@@ -1402,7 +1402,7 @@ function lineWillLand(seg){
   const origin = (S.surface && S.surface.type === 'finger') ? S.rampOrigin : S.surface;
   const dest = landing.plat || landing.drop;
   // A DROP to a platform at or below the origin is not progress —
-  // it is a fall back down (Larry 2026-10-29: first a drop to a
+  // it is a fall back down (Jack 2026-10-29: first a drop to a
   // lower platform stayed green; then a drop to the SAME row, its
   // other segment, stayed green — and scroll had carried that row
   // to the screen bottom by landing time). Rows have distinct
@@ -1416,7 +1416,7 @@ function lineWillLand(seg){
     const originY = !origin ? S.y : (origin.type === 'ground' ? groundY : origin.y);
     if (dest.y >= originY) return false;
   }
-  // Guaranteed landing (Larry 2026-10-30): a step-on is only
+  // Guaranteed landing (Jack 2026-10-30): a step-on is only
   // green if the EXIT puts him ON the platform — not beside it.
   // The engine steps him 4px past the far end in his running
   // direction (clamped to 6px outside the platform), so a far end
@@ -1428,10 +1428,10 @@ function lineWillLand(seg){
   if (landing.plat){
     const exitX = clamp(endX + dir * 4, landing.plat.x1 - 6, landing.plat.x2 + 6);
     if (exitX < landing.plat.x1 || exitX > landing.plat.x2) return false;
-    // Mouse trap (Larry 2026-11-09): a landing on a trap is never
+    // Mouse trap (Jack 2026-11-09): a landing on a trap is never
     // green — green is a promise of a SAFE landing.
     if (trapAt(landing.plat, exitX)) return false;
-    // Ball cat (Larry 2026-11-10): a landing on a cat is never
+    // Ball cat (Jack 2026-11-10): a landing on a cat is never
     // green, same as a trap.
     if (catAt(landing.plat, exitX)) return false;
   } else if (landing.drop){
@@ -1442,7 +1442,7 @@ function lineWillLand(seg){
   }
   return true;
 }
-// KEPT-LINE GREEN (Larry 2026-10-28: a kept line should stay
+// KEPT-LINE GREEN (Jack 2026-10-28: a kept line should stay
 // green if it is snapped and embarkable — judged from the LINE's
 // own anchors, not from where he currently stands). The live
 // line's green stays lineWillLand ("can I mount it from here"),
@@ -1502,7 +1502,7 @@ function keptLineWillLand(seg){
     // step-on counts wherever it lands (a downward face landing
     // counts, F3; a same-height step-on is a real sideways move,
     // U4); a DROP must land strictly above the anchor — a drop at
-    // or below it is a backward landing, not progress (Larry
+    // or below it is a backward landing, not progress (Jack
     // 2026-10-29: first a drop to a lower platform, then a drop to
     // the SAME row's other segment, both stayed green; rows have
     // distinct heights, so a same-height drop is always the anchor
@@ -1512,16 +1512,16 @@ function keptLineWillLand(seg){
     const dest = landing.plat || landing.drop;
     if (dest === p) continue;
     if (landing.drop && dest.y >= pY) continue;
-    // Guaranteed landing (Larry 2026-10-30): same exit-on-the-
+    // Guaranteed landing (Jack 2026-10-30): same exit-on-the-
     // platform check as lineWillLand, from this anchor's
     // climbing direction.
     if (landing.plat){
       const exitX = clamp(farX + dir * 4, landing.plat.x1 - 6, landing.plat.x2 + 6);
       if (exitX < landing.plat.x1 || exitX > landing.plat.x2) continue;
-      // Mouse trap (Larry 2026-11-09): a landing on a trap is never
+      // Mouse trap (Jack 2026-11-09): a landing on a trap is never
       // green from this anchor — try the next one.
       if (trapAt(landing.plat, exitX)) continue;
-      // Ball cat (Larry 2026-11-10): same — a landing on a cat is
+      // Ball cat (Jack 2026-11-10): same — a landing on a cat is
       // never green from this anchor.
       if (catAt(landing.plat, exitX)) continue;
     } else if (landing.drop){
@@ -1561,13 +1561,13 @@ function rampBlocker(seg, fromX, dir){
 // Where he'd aim for: fingertip centre, or the point ON the ramp
 // nearest his feet (usually its low crossing point, not an end).
 function fingerTarget(){
-  // First line first (Larry 2026-11-03): while a kept first line
+  // First line first (Jack 2026-11-03): while a kept first line
   // is pending and he is running, steer toward it, not toward the
   // live line being drawn — otherwise steering tethers him to the
   // second line's foot while mounting forbids it, and he
   // oscillates there instead of reaching the first.
   const seg = (S.keptSeg && S.surface && S.surface.type !== 'finger') ? S.keptSeg : fingerSegment();
-  // A spent finger is fully inert (Larry 2026-11-05, helping hand
+  // A spent finger is fully inert (Jack 2026-11-05, helping hand
   // revert): it draws no line and steers nothing — otherwise he
   // oscillates around its x forever instead of running off. A
   // live fingertip (no segment, not spent) still steers him
@@ -1611,7 +1611,7 @@ function findLanding(prevBottom, newBottom, x, excludePlat){
 // first) — press() merges it in instead of dropping it.
 let pendingPatch = null;
 // first-finger-wins: a second pointer/touch never steals the
-// first finger's line (Larry 2026-10-26: pointing again made the
+// first finger's line (Jack 2026-10-26: pointing again made the
 // line vanish)
 let activePointer = null, activeTouchId = null;
 function press(x, y, rx, ry, rot, isMouse){
@@ -1669,7 +1669,7 @@ function release(){
   // the line STAYS after lifting: snapshot the live segment (if
   // any) into the kept slot — he can finish running it, or
   // mount it later — until it is used up or deleted. One line
-  // only (Larry 2026-11-09, for now): a new draw REPLACES the
+  // only (Jack 2026-11-09, for now): a new draw REPLACES the
   // kept line instead of adding a second one, so keptSeg2 stays
   // empty and the two-line code that reads it is dormant —
   // restoring two lines is just the else branch below. A spent
@@ -1686,7 +1686,7 @@ function release(){
     // just kept, W4). When he drew another line while embarked
     // on a kept line, the new line's slot must not steal the
     // climbing slot, or he would switch onto it.
-    // (Larry 2026-11-09 log: when the live line he is climbing
+    // (Jack 2026-11-09 log: when the live line he is climbing
     // snaps mid-climb and he releases it, the kept copy is the
     // SNAPPED line — S.climbSeg must follow it, or the climb
     // would switch to the stale pre-snap line he mounted while
@@ -1696,9 +1696,9 @@ function release(){
     // does not, because rampSlot is not 'live' there.)
     if (!S.keptSeg){ S.keptSeg = copy; if (S.surface.type === 'finger' && S.rampSlot === 'live'){ S.rampSlot = 1; S.climbSeg = copy; } keptNow = true; }
     else {
-      // One line (Larry 2026-11-09, for now): the new draw
+      // One line (Jack 2026-11-09, for now): the new draw
       // replaces the kept line. If he was climbing the replaced
-      // line, he keeps climbing it (Larry 2026-11-09: you can
+      // line, he keeps climbing it (Jack 2026-11-09: you can
       // draw a new line while climbing a locked line) — the climb
       // reads S.climbSeg, not the kept slot, so replacing the
       // slot neither drops him nor switches him to the new line.
@@ -1782,7 +1782,7 @@ function tick(now){
   // mouse rides his ledge down with it (the run branch pins y
   // to the surface), so standing still means falling behind —
   // that's the pressure. Scroll runs at its pace even while
-  // he's on a ramp (Larry 2026-10-28: the autoscroll should
+  // he's on a ramp (Jack 2026-10-28: the autoscroll should
   // continue and not stop); a start-locked line's start rides
   // the world, and the world-steepening exemption keeps him
   // climbing when scroll/follow steepens it.
@@ -1804,7 +1804,7 @@ function tick(now){
     rows = rows.filter(r => r.y <= H + 120);
   }
 
-  // Ball cats walk (Larry 2026-11-10): each cat patrols its
+  // Ball cats walk (Jack 2026-11-10): each cat patrols its
   // segment back and forth at its colour's pace — a multiple
   // of the mouse's current speed, so the relative pace holds
   // as the game speeds up. A cat walking into him kills him,
@@ -1836,14 +1836,14 @@ function tick(now){
     if (S.mode === 'run'){
       S.runT += dt;
       // Drawing another line while embarked on a kept line must
-      // not jump him off it (Larry 2026-10-28): the climb keeps
+      // not jump him off it (Jack 2026-10-28): the climb keeps
       // the kept line he mounted, while the new line is drawn
       // (and kept on release) alongside it. A badge tap is not a
       // draw (deletePress keeps the delete-fall), and a live-line
       // climb is untouched — that line is gone with the old finger.
       // The climb reads S.climbSeg (the line he mounted), not the
       // kept slot: a new draw while climbing a locked line replaces
-      // the kept slot on release (Larry 2026-11-09: you can draw a
+      // the kept slot on release (Jack 2026-11-09: you can draw a
       // new line while climbing a locked line), and he keeps
       // climbing the old line — reading the slot would switch him
       // to the new line. Live lines keep the old path (a new press
@@ -1854,7 +1854,7 @@ function tick(now){
         else if (S.rampSlot === 2 && S.keptSeg2) seg = S.keptSeg2;
         else if (S.rampSlot === 2 && S.keptSeg) seg = S.keptSeg; // the other line was deleted and this one promoted
       }
-      // World-steepened (Larry 2026-10-28): a start-locked line can
+      // World-steepened (Jack 2026-10-28): a start-locked line can
       // steepen past the limit purely because scroll/follow rides its start
       // down while the end stays put — that is the world's movement,
       // not his, so it must not drop him. Finger-dragged steepening
@@ -1878,7 +1878,7 @@ function tick(now){
           }
         }
 
-        // First line first (Larry 2026-11-03): while a kept first
+        // First line first (Jack 2026-11-03): while a kept first
         // line is still pending, a second line — live (being drawn)
         // or kept — must not be mounted before it. With the finger
         // up this already held (fingerSegment returns the first
@@ -1894,7 +1894,7 @@ function tick(now){
         if (!(S.finger && S.finger === S.spentFinger) && S.surface.type !== 'finger' && seg && segClimbable(seg) && segTouchesSurface(seg, S.surface)){
           const [lo, hi] = segSpan(seg);
           const mx = clamp(nx, lo, hi), yAt = segYAt(seg, mx);
-          // front-line rule (Larry 2026-10-26): a line drawn in
+          // front-line rule (Jack 2026-10-26): a line drawn in
           // front must not change his trajectory or location — he
           // keeps running straight and mounts only at the line's
           // foot, from the side where it makes the largest angle
@@ -1904,13 +1904,13 @@ function tick(now){
           // just BEHIND him still counts as AT it — the exit steps
           // him 4px past the far end, so a green line starting at
           // the node he just landed on would otherwise be ignored
-          // (Larry 2026-11-09 log: he exited onto [242,430] at
+          // (Jack 2026-11-09 log: he exited onto [242,430] at
           // x=246, the foot at x=244, and ran off the edge). The
           // tolerance is 8px behind him only, so a line he is
           // still approaching from the acute side still does not
           // mount.
           const surfY = S.surface.type === 'ground' ? groundY : S.surface.y;
-          const foot = segFoot(seg, surfY, S.dir, nx); // nearest end to where he is headed — a bridge back from the edge he just landed on has its foot at the near end, so he turns toward it instead of running past it off the edge (Larry 2026-11-09)
+          const foot = segFoot(seg, surfY, S.dir, nx); // nearest end to where he is headed — a bridge back from the edge he just landed on has its foot at the near end, so he turns toward it instead of running past it off the edge (Jack 2026-11-09)
           const dFoot = S.x - foot.x;
           const justPast = dFoot * S.dir > 0 && Math.abs(dFoot) <= 8; // the foot is just behind him (he just passed it / the exit put him there)
           if (Math.abs(nx - mx) <= CFG.halfW + 8 && Math.abs(yAt - S.y) <= CFG.climb && (dFoot * (foot.farX - foot.x) <= 0 || justPast)){
@@ -1967,7 +1967,7 @@ function tick(now){
             S.y = groundY;
           } else { // platform
             S.y = S.surface.y;
-            // He can run off the platform's edge again (Larry
+            // He can run off the platform's edge again (Jack
             // 2026-11-05, reverting the helping hand): past the
             // edge he falls. The mount check above runs first, so
             // a ramp whose foot is at the edge still mounts
@@ -2014,7 +2014,7 @@ function tick(now){
       if (landed){ S.y = landed.y; if (landed.surf.type === 'finger'){ S.rampOrigin = S.surface; S.rampDir = S.dir; S.rampFinger = S.finger; S.rampSlot = (seg === S.keptSeg) ? 1 : ((seg === S.keptSeg2) ? 2 : 'live'); S.climbSeg = seg; } S.surface = landed.surf; S.vy = 0; S.mode = 'run'; S.verticalFall = false; S.fallExclude = null; S.fallFrom = null; logEvent('LAND', 'surf=' + (landed.surf.type === 'finger' ? 'finger ' + segStr(seg) : platStr(landed.surf)) + ' at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ')'); }
     }
 
-    // points (Larry 2026-11-06, Flappy-style): landing on a row above
+    // points (Jack 2026-11-06, Flappy-style): landing on a row above
     // earns the rows gained (1 above = 1, 2 above = 2 — the rows
     // bypassed count too), and each row counts only once, so points
     // is the highest row reached. bestRow stays as the diagnostic
@@ -2026,7 +2026,7 @@ function tick(now){
       setScore(delta);
       applySpeedRamp(); // speed ramp: a new best row steps the pace up (logged as SPEED)
     }
-    // Mouse trap (Larry 2026-11-09, death on touch): running
+    // Mouse trap (Jack 2026-11-09, death on touch): running
     // into, landing on, or exiting onto a trap ends the run.
     // Checked once per tick, after all movement and landings
     // (and after points, so he keeps the row he died on), so a
@@ -2034,21 +2034,21 @@ function tick(now){
     // never on a trap while climbing a ramp — only while running
     // on the platform it sits on — so ramping over one is safe.
     if (S.mode === 'run' && S.surface && S.surface.type !== 'finger' && trapAt(S.surface, S.x)) dieTrap();
-    // Ball cat (Larry 2026-11-10, death on touch): running into,
+    // Ball cat (Jack 2026-11-10, death on touch): running into,
     // landing on, or exiting onto a cat ends the run, same as a
     // trap. Ramping over one is safe.
     if (S.mode === 'run' && S.surface && S.surface.type !== 'finger' && catAt(S.surface, S.x)) dieCat();
-    // scroll starts when he gets onto row 1 (Larry 2026-11-09) —
+    // scroll starts when he gets onto row 1 (Jack 2026-11-09) —
     // not when he reaches mid-screen. The world starts moving as
     // soon as he starts climbing, so the ground leaves sooner: a
     // fall from row 1 is fatal once the ground has scrolled off
     // the bottom (about 0.7s after row 1 on a phone screen).
     if (!scrolling && bestRow >= 1){ scrolling = true; logEvent('SCROLL', 'start at y=' + Math.round(S.y) + ' rows=' + bestRow); }
-    // No follow (Larry 2026-11-09: cap the world at the scroll
+    // No follow (Jack 2026-11-09: cap the world at the scroll
     // speed). The follow used to translate the whole view down
     // whenever he rose above the middle, so the world moved at
     // scroll + his climb rate (up to ~200px/s) during climbs —
-    // Larry reported it as the scroll quickening. The scroll
+    // Jack reported it as the scroll quickening. The scroll
     // already uses the full budget, so a capped follow adds
     // nothing: the world now moves at exactly the current ramp
     // speed (curA), always. He rises up the screen as he climbs
@@ -2063,7 +2063,7 @@ function tick(now){
       banner.querySelector('span').textContent = points + ' points — tap Reset to try again';
       banner.style.display = 'block';
       logEvent('DEATH', 'y=' + Math.round(S.y) + ' rows=' + bestRow);
-      // Best score (Larry 2026-11-06): the homescreen reads it
+      // Best score (Jack 2026-11-06): the homescreen reads it
       // from localStorage — save only when this run beats it.
       try {
         const prev = parseInt(localStorage.getItem('mousyRunBest') || '0', 10) || 0;
@@ -2103,7 +2103,7 @@ function draw(now){
     ctx.fillStyle = '#97b56a'; ctx.fillRect(0, groundY, W, 7);
   }
 
-  // platforms — pill ends (Larry 2026-11-06: radius 7, fully rounded
+  // platforms — pill ends (Jack 2026-11-06: radius 7, fully rounded
   // on a 14px bar) with a faint transparent pale-yellow outline
   // (rgba(255,224,130,.55), 2px — the "little thicker" B). The top
   // strip is clipped to the bar so its square corners can't poke
@@ -2117,7 +2117,7 @@ function draw(now){
     ctx.fillStyle = '#b08d5f';
     ctx.fillRect(p.x1 + 2, p.y, p.x2 - p.x1 - 4, 5);
     ctx.restore();
-    // Mouse trap (Larry 2026-11-09): a snap trap on the platform —
+    // Mouse trap (Jack 2026-11-09): a snap trap on the platform —
     // a wooden base with a metal snap bar and a spring hinge.
     // Death on touch.
     if (p.trapX !== undefined && p.trapX !== null){
@@ -2129,10 +2129,10 @@ function draw(now){
       ctx.fillStyle = '#3a3a3a';
       ctx.beginPath(); ctx.arc(tx, p.y - 6, 3, 0, Math.PI * 2); ctx.fill();
     }
-    // Ball cats (Larry 2026-11-10): a ball cat sitting on the
+    // Ball cats (Jack 2026-11-10): a ball cat sitting on the
     // platform, drawn from its colour's sprite (1-4), feet on
     // the platform top, about the mouse's size. Death on touch.
-    // Every cat is a clone of the mouse running (Larry
+    // Every cat is a clone of the mouse running (Jack
     // 2026-11-11): the mouse's ball body, no tail, a white eye
     // with a black pupil, with each cat's own fur and ears. The
     // run cycle is the mouse's own — the same 4-step ping-pong
@@ -2157,9 +2157,9 @@ function draw(now){
   }
 
   // nodes: orange circles with a thick lighter outline at
-  // gap-facing platform ends (Larry 2026-10-29 dots, 2026-11-01
+  // gap-facing platform ends (Jack 2026-10-29 dots, 2026-11-01
   // orange) — except a node a green line snaps into, which
-  // turns dark green with a light green border (Larry
+  // turns dark green with a light green border (Jack
   // 2026-11-02). Ring the locked start node, and the node the
   // finger would snap to, so the lock/snap is visible first;
   // the rings sit outside the outline (NODE_DRAW + 9). A green
@@ -2182,7 +2182,7 @@ function draw(now){
   if (farPreview && !greenSet.has(farPreview.x + ',' + farPreview.y)){
     ctx.strokeStyle = '#2a9d2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(farPreview.x, farPreview.y, NODE_DRAW + 9, 0, Math.PI * 2); ctx.stroke();
   }
-  // Snap flash (Larry 2026-11-02): one expanding, fading ring
+  // Snap flash (Jack 2026-11-02): one expanding, fading ring
   // + a brief bright glow on the node the line just snapped
   // into. ~250ms, then it settles into the node's state color
   // (green if the line is green, orange if amber).
@@ -2225,7 +2225,7 @@ function draw(now){
     const isKept = seg === S.keptSeg || seg === S.keptSeg2;
     const climbing = S.surface && S.surface.type === 'finger';
     const lands = (isKept && !climbing) ? keptLineWillLand(seg) : lineWillLand(seg);
-    // single stroke, NO outline, with ROUNDED caps (Larry
+    // single stroke, NO outline, with ROUNDED caps (Jack
     // 2026-10-29). Cosmetic only: a round cap extends the
     // VISIBLE line 8px past each logical end (half the 16px
     // width), so a line can look like it touches a platform when

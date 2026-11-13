@@ -1,7 +1,7 @@
-// One line (Larry 2026-11-09, for now): only one line on
+// One line (Jack 2026-11-09, for now): only one line on
 // screen. Drawing a second line replaces the first; there is
 // no second slot. Drawing a new line while climbing the kept
-// line is allowed (Larry 2026-11-09: you can draw a new line
+// line is allowed (Jack 2026-11-09: you can draw a new line
 // while climbing a locked line) — the new line replaces the
 // kept one, and he keeps climbing the old line until he exits
 // it (the climb reads S.climbSeg, not the kept slot).
@@ -24,7 +24,7 @@ const logText = () => T.log.join('\n');
   console.log('[W1] a second draw replaces the first: OK');
 }
 // W2: drawing a new line while climbing the kept line is
-// allowed (Larry 2026-11-09: you can draw a new line while
+// allowed (Jack 2026-11-09: you can draw a new line while
 // climbing a locked line) — the new line replaces the kept one,
 // and he keeps climbing the old line until he exits it
 {

@@ -1,4 +1,4 @@
-// Start-lock anchoring to the NEAREST platform (Larry 2026-10-28:
+// Start-lock anchoring to the NEAREST platform (Jack 2026-10-28:
 // "line moves with the scroll" — a line drawn on the platform he
 // is about to land on detached as that platform scrolled, because
 // the lock only ever anchored to the platform he stood on).
@@ -35,7 +35,7 @@ const logText = () => T.log.join('\n');
   assert(S.mode === 'run' && S.surface === origin, 'A2: must keep running on his own platform');
   console.log('[A2] start locked to another platform rides it through scroll: OK');
 }
-// A3: Larry's line-4 case — a press just below a narrow platform,
+// A3: Jack's line-4 case — a press just below a narrow platform,
 // dragged up through its height with the foot over the gap (past
 // its edge), locks: clamping creates the foot on the platform
 {

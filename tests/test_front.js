@@ -1,4 +1,4 @@
-// Front-line rule (Larry 2026-10-26): a line drawn in front of the
+// Front-line rule (Jack 2026-10-26): a line drawn in front of the
 // mouse (in his running direction) must not change his trajectory
 // or location. He keeps running straight and mounts only at the
 // line's foot — where it meets the surface he's on — from the side

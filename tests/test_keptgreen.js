@@ -1,4 +1,4 @@
-// Kept-line green (Larry 2026-10-28): a kept line stays green
+// Kept-line green (Jack 2026-10-28): a kept line stays green
 // if the LINE itself is good — climbable, touching a platform
 // (its own embark anchor), crossing nothing, far end landing
 // somewhere new from that anchor — even after he moves to a

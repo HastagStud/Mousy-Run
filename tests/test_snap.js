@@ -1,4 +1,4 @@
-// B auto-snap (endless only, Larry 2026-10-27): a drawn line snaps
+// B auto-snap (endless only, Jack 2026-10-27): a drawn line snaps
 // to real anchors — start to his platform, far to an edge above —
 // only when both ends are within snapR (64px), the snapped line
 // is climbable, and it crosses no platform. Otherwise the line
@@ -11,7 +11,7 @@ function segEq(seg, ax, ay, bx, by) {
 const lower = { x1: 0, x2: 390, y: 700 };
 const upper = { x1: 250, x2: 390, y: 550 };
 // S1: both ends aimed near anchors -> snaps, is green, lands on target.
-// Updated 2026-11-02 (Larry: any line's far end snaps into a
+// Updated 2026-11-02 (Jack: any line's far end snaps into a
 // node, node wins over a B edge): the finger (260,560) is near
 // both the B edge (250,550) and the node (250,557), so the far
 // end is the node now, not the edge.
@@ -32,7 +32,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S2] far end out of radius stays raw: OK');
 }
 // S3: start end nowhere near his platform -> B does not snap
-// the start. Updated 2026-11-02 (Larry: any line's far end
+// the start. Updated 2026-11-02 (Jack: any line's far end
 // snaps into a node): the finger (260,560) is within 28px of
 // the node (250,557), so the far end DOES node-snap even
 // though B stays off and the start stays raw at the press.
@@ -44,7 +44,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S3] start end out of radius stays raw, far end still node-snaps: OK');
 }
 // S4: snapped line too steep to climb -> B rejects it, and the
-// node snap rejects it too (Larry 2026-11-05: only a line within
+// node snap rejects it too (Jack 2026-11-05: only a line within
 // 1.5deg of vertical is unclimbable now, so the test line is
 // vertical). The far end stays raw at the finger.
 {
@@ -57,7 +57,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S4] unclimbable B snap rejected, node snap rejected too (amber, raw far end): OK');
 }
 // S5: snapped line would cross a platform -> B rejects it.
-// Updated 2026-11-02 (Larry: any line's far end snaps into a
+// Updated 2026-11-02 (Jack: any line's far end snaps into a
 // node, unconditionally like nodeLock): the finger (260,560)
 // is within 28px of the node (250,557), so the far end DOES
 // node-snap even though the B edge snap is rejected for
@@ -71,7 +71,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S5] crossing B snap rejected, far end still node-snaps (amber): OK');
 }
 // S6: the START locks while he climbs — dragging mid-climb moves
-// the end (he controls it, Larry 2026-10-28) but the start stays
+// the end (he controls it, Jack 2026-10-28) but the start stays
 // put, and he still lands on target (via drop)
 {
   setWorld([lower, upper], 100); press(100, 700); move(260, 560);
@@ -84,7 +84,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   assert(landed === upper, 'S6: start-locked line must land on the upper platform');
   console.log('[S6] start stays locked while the end follows the finger: OK');
 }
-// S8: Larry's exact log line (2026-10-27) — it used to drop back
+// S8: Jack's exact log line (2026-10-27) — it used to drop back
 // onto his origin while green; under B it snaps onto the upper
 // platform's edge and lands there instead. Since nodes (2026-10-29)
 // the press (872,723) lands within 28px of the origin's gap node
@@ -103,7 +103,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S8] log line snaps and lands on the upper platform: OK');
 }
 // S9: a raw line snaps MID-CLIMB when the drag moves it into a
-// snap target (Larry 2026-10-28: mounting a raw line bypassed
+// snap target (Jack 2026-10-28: mounting a raw line bypassed
 // snap, so a line dragged toward an edge never snapped at all).
 // Since nodes (2026-10-29) the press (320,700) lands within 28px
 // of the origin's gap node (300,707), so the line starts
@@ -129,7 +129,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S9] raw line snaps mid-climb and lands on target: OK');
 }
 // S7: ground counts as the platform he stands on.
-// Updated 2026-11-02 (Larry: node wins over a B edge): the
+// Updated 2026-11-02 (Jack: node wins over a B edge): the
 // finger (260,560) is near both the B edge (250,550) and the
 // node (250,557), so the far end is the node now.
 {
@@ -141,8 +141,8 @@ const upper = { x1: 250, x2: 390, y: 550 };
 }
 // S10: the locked start rides the world and never disengages —
 // scroll stretching the press-point distance past snapR must not
-// drop the snap (Larry 2026-10-28, Example 2).
-// Updated 2026-11-02 (Larry: node wins over a B edge): the
+// drop the snap (Jack 2026-10-28, Example 2).
+// Updated 2026-11-02 (Jack: node wins over a B edge): the
 // finger (240,260) is near both the B edge (250,250) and the
 // node (250,257), so the far end is the node now.
 {
@@ -159,7 +159,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
   console.log('[S10] locked start rides the world and never disengages: OK');
 }
 // S11: the locked start rides the world down while he climbs, and
-// the line persists (Larry 2026-10-28 vision, updated 2026-11-09
+// the line persists (Jack 2026-10-28 vision, updated 2026-11-09
 // for the capped follow). The start is a world point: once
 // scrolling, it descends at exactly the scroll rate — no follow
 // shove — and the line stays whole until he exits onto the upper
@@ -196,7 +196,7 @@ const upper = { x1: 250, x2: 390, y: 550 };
     if (T11.scrolling && prev && seg.ax === prev.ax) {
       const dAy = seg.ay - prev.ay;
       // the scroll rate is the current ramped speed (curA), not the
-      // base SCROLL_A — bestRow=1 already ramps it to 62 (Larry
+      // base SCROLL_A — bestRow=1 already ramps it to 62 (Jack
       // 2026-11-09 speed ramp), and it steps up as he climbs
       if (Math.abs(dAy - T11.curA * 0.016) < 1e-6) sawScrollRate = true;
       assert(dAy >= -1e-9 && dAy <= T11.curA * 0.016 + 1e-6, 'S11: locked start must descend at most the scroll rate, got ' + dAy);
@@ -218,14 +218,14 @@ const upper = { x1: 250, x2: 390, y: 550 };
   assert(landed11 && Math.abs(S11.y - upper.y) < 2, 'S11: must exit onto the upper platform, got mode=' + S11.mode + ' S.y=' + S11.y + ' upper.y=' + upper.y);
   console.log('[S11] locked start rides the scroll while climbing and the line persists: OK');
 }
-// S12: scroll continues at its pace while he's on a ramp (Larry
+// S12: scroll continues at its pace while he's on a ramp (Jack
 // 2026-10-28: the autoscroll should continue and not stop). The
 // measured climb stays below mid-screen (422 = 844/2), so follow
 // is off and any world movement is scroll alone — the old pause
 // would leave the platform exactly where it was.
 {
   // Phase A: turn scrolling on (a row-1 platform — scroll starts
-  // when he gets onto row 1, Larry 2026-11-09, not at mid-screen)
+  // when he gets onto row 1, Jack 2026-11-09, not at mid-screen)
   setWorld([{ x1: 100, x2: 390, y: 400, row: 1 }], 150);
   tick();
   assert(T.scrolling, 'S12: scrolling must be on after reaching row 1');

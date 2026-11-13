@@ -1,4 +1,4 @@
-// Green means lands (Larry 2026-10-27): the three landing paths that
+// Green means lands (Jack 2026-10-27): the three landing paths that
 // used to predict amber now predict green AND actually land when run
 // — the prediction and the exit use the same shared check, so they
 // cannot disagree.

@@ -1,4 +1,4 @@
-// Mouse traps (Larry 2026-11-09, death on touch): a trap is a
+// Mouse traps (Jack 2026-11-09, death on touch): a trap is a
 // hazard on a platform. Touching it ends the run. At most one
 // per row, only on some rows, never in the first few, and only
 // on a segment long enough to leave a way past. A line that

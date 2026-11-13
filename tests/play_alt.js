@@ -1,4 +1,4 @@
-// Play driver for the alternating-gap test copy (Larry 2026-11-03).
+// Play driver for the alternating-gap test copy (Jack 2026-11-03).
 // Plays endless-alt.html autonomously, 50 rows or until death /
 // a failed climb. Each climb is PLANNED first with the game's own
 // release green (keptLineWillLand — position-independent, and

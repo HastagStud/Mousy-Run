@@ -16,8 +16,8 @@ SPRITES = [
     "mouse-right-run-1.png", "mouse-right-run-2.png", "mouse-right-run-3.png",
 ]
 
-# Ball cats (Larry 2026-11-10): the four villain colours, 1-4.
-# Every cat is a clone of the mouse running (Larry 2026-11-11):
+# Ball cats (Jack 2026-11-10): the four villain colours, 1-4.
+# Every cat is a clone of the mouse running (Jack 2026-11-11):
 # the mouse's ball body, no tail, a white eye with a black
 # pupil, with each cat's own fur and ears — 3 frames per colour
 # (the tail was the run animation, so the frames are the same
@@ -49,7 +49,7 @@ def build(src, dst, hrefs=None):
 
 # ---------- combined homescreen standalone (2026-11-06) ----------
 # The delivered homescreen opens as a lone attachment, so a relative
-# link to a sibling file has nowhere to go (Larry 2026-11-06:
+# link to a sibling file has nowhere to go (Jack 2026-11-06:
 # clicking PLAY did nothing). The combined file is self-contained:
 # PLAY and Train switch views INSIDE the file — the endless game
 # and the training ground run in iframes whose whole documents are

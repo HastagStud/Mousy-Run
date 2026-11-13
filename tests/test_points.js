@@ -1,4 +1,4 @@
-// Point gathering (Larry 2026-11-06, Flappy-style): landing on a row
+// Point gathering (Jack 2026-11-06, Flappy-style): landing on a row
 // above earns the rows gained (1 above = 1, 2 above = 2 — bypassed
 // rows count), each row counts only once, so points = highest row
 // reached. The big top-center number shows points and pops on gain.

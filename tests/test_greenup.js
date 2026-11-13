@@ -1,4 +1,4 @@
-// Green means ONWARD (Larry 2026-10-29: a green line whose far
+// Green means ONWARD (Jack 2026-10-29: a green line whose far
 // end stopped short of the next platform stayed green only
 // because its far end dropped — first to a LOWER platform, then
 // to the SAME row's other segment, both backward landings that
@@ -11,7 +11,7 @@ const { sandbox, T, S, assert, press, move, release, setWorld } = loadGame();
 const lastRelease = () => T.log.filter(l => l.includes('RELEASE')).pop();
 
 // U1: kept line whose far end drops to a platform BELOW its
-// embark anchor (Larry's log: far end short of row 7, dropping
+// embark anchor (Jack's log: far end short of row 7, dropping
 // to row 5 below) must be amber, not green
 {
   const anchor = { x1: 300, x2: 430, y: 440, row: 1 };
@@ -46,7 +46,7 @@ const lastRelease = () => T.log.filter(l => l.includes('RELEASE')).pop();
   assert(lastRelease().includes('green=true'), 'U3: release must print the upward drop green');
   console.log('[U3] line dropping to a platform above its anchor stays green: OK');
 }
-// U4 (preserved): a same-height landing stays green (Larry's
+// U4 (preserved): a same-height landing stays green (Jack's
 // horizontal ruling, 2026-10-28)
 {
   const anchor = { x1: 0, x2: 150, y: 700, row: 1 };
@@ -59,7 +59,7 @@ const lastRelease = () => T.log.filter(l => l.includes('RELEASE')).pop();
   console.log('[U4] same-height landing stays green: OK');
 }
 // U5: kept line whose far end drops to the SAME row's other
-// segment (Larry's second log: from row 7's right segment, far
+// segment (Jack's second log: from row 7's right segment, far
 // end in the air, dropping to row 7's left segment) must be amber
 // — same height means the same row, never a new row, and scroll
 // carries that row toward the screen bottom while he climbs

@@ -1,4 +1,4 @@
-// Touch-mode start-lock tests (Larry 2026-10-28): the lock was
+// Touch-mode start-lock tests (Jack 2026-10-28): the lock was
 // mouse-only (it required dragA, which is null on touch), so it
 // never fired on his device while every mouse-mode test passed.
 // These drive the game with touch presses (isMouse=false).
@@ -19,7 +19,7 @@ const segEq = (seg, ax, ay, bx, by) => seg && Math.round(seg.ax) === ax && Math.
   console.log('[T-far] far touch press does not lock: OK');
 }
 // T-ride: touch mirror of S10 — the locked start rides and never disengages.
-// Updated 2026-11-02 (Larry: node wins over a B edge): the
+// Updated 2026-11-02 (Jack: node wins over a B edge): the
 // finger (240,260) is near both the B edge (250,250) and the
 // node (250,257), so the far end is the node now.
 {

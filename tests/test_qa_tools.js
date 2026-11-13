@@ -1,7 +1,7 @@
-// QA Tools (Larry 2026-11-11): Reset, LOG and BOOST are test
+// QA Tools (Jack 2026-11-11): Reset, LOG and BOOST are test
 // tools, not part of the real game. A single QA_TOOLS flag hides
 // them (the components stay in the code). The developer flips it
-// per environment — true while Larry is testing, false for the
+// per environment — true while Jack is testing, false for the
 // real game. The home icon is not a QA tool; it always shows.
 const fs = require('fs');
 const path = require('path');

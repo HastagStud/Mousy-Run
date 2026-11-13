@@ -88,7 +88,7 @@ for (let i = 0; i < 9000 && !wrappedAgain; i++){ tick(); if (T.demoWraps > wraps
 assert(wrappedAgain, 'home: the loop must repeat (wraps=' + T.demoWraps + ', climbs=' + T.demoClimbs + ')');
 
 // ---- the DELIVERED standalone (mouse-game-home-play.html) ----
-// PLAY/Train must switch views INSIDE the single file (Larry
+// PLAY/Train must switch views INSIDE the single file (Jack
 // 2026-11-06: clicking PLAY did nothing when the file opened as
 // a lone attachment — the relative link to the sibling file had
 // nowhere to go).
@@ -107,7 +107,7 @@ assert(combined.includes('id="playBtn"') && combined.includes('id="trainBtn"')
   && combined.includes('id="endlessFrame"') && combined.includes('id="trainFrame"')
   && combined.includes('id="homeBtn"'),
   'home standalone: must have play/train buttons, both game frames, and a Home button');
-// Cartoonish home icon (Larry 2026-11-11): the Home button is a
+// Cartoonish home icon (Jack 2026-11-11): the Home button is a
 // little house (inline SVG) in the top-left corner, not the old
 // '‹ Home' text at the bottom-left.
 assert(combined.includes('id="homeBtn"') && combined.includes('viewBox="0 0 64 64"')

@@ -1,4 +1,4 @@
-// Helping hand REVERTED (Larry 2026-11-05): on a platform the
+// Helping hand REVERTED (Jack 2026-11-05): on a platform the
 // mouse CAN run off it again — past an edge he falls, the way he
 // did before the helping hand. He only stays on a platform while
 // he is on it; the ground still turns him at the screen edges.
@@ -39,7 +39,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 {
   const origin = { x1: 100, x2: 390, y: 700 };
   setWorld([origin], 200);
-  press(390, 700); move(390, 550); // foot at the right edge, vertical (unclimbable — Larry 2026-11-05: only near-vertical is unclimbable now)
+  press(390, 700); move(390, 550); // foot at the right edge, vertical (unclimbable — Jack 2026-11-05: only near-vertical is unclimbable now)
   let fell = false, maxX = -999;
   for (let i = 0; i < 400; i++) {
     tick();

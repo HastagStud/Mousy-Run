@@ -1,4 +1,4 @@
-// Mounting a kept line whose end is right next to him (Larry
+// Mounting a kept line whose end is right next to him (Jack
 // 2026-11-09 log): he exits onto a platform running right, and a
 // kept line (a bridge drawn back from the platform's edge node)
 // extends left from the platform's edge, its near end 4px from

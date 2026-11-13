@@ -1,4 +1,4 @@
-// Play log (Larry 2026-10-27): every engine decision is recorded so
+// Play log (Jack 2026-10-27): every engine decision is recorded so
 // a defect can be pinned to an exact frame, segment, and decision
 // from the log the player pastes into chat.
 const { loadGame } = require('./harness');

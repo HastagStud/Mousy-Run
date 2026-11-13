@@ -1,4 +1,4 @@
-// Face counts (Larry 2026-10-26): a downward line ending on a
+// Face counts (Jack 2026-10-26): a downward line ending on a
 // platform's face lands on it; ending below the face falls through.
 const { loadGame } = require('./harness');
 const { sandbox, S, assert, press, move, setWorld, settle } = loadGame();

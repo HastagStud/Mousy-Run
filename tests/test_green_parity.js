@@ -1,4 +1,4 @@
-// Green parity (Larry 2026-11-06): what counts as green must be the
+// Green parity (Jack 2026-11-06): what counts as green must be the
 // same in endless and static. Same world, same mouse state, same
 // segments — lineWillLand and keptLineWillLand must agree in both
 // games, and match the expected verdict in each case.

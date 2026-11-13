@@ -39,7 +39,7 @@ const upper = { x1: 0, x2: 390, y: 550 };
   assert(mounted, 'D: must mount first');
   for (let i = 0; i < 30; i++) tick(); // climb partway up first
   assert(S.surface && S.surface.type === 'finger' && S.y < 700, 'D: must be mid-climb before steepening');
-  move(150, 480); // steepen to vertical -> falls from height, line spent (Larry 2026-11-05: only near-vertical is unclimbable now)
+  move(150, 480); // steepen to vertical -> falls from height, line spent (Jack 2026-11-05: only near-vertical is unclimbable now)
   tick();
   assert(S.mode === 'fall' && S.spentFinger, 'D: steepening must drop him mid-climb and spend the line');
   move(300, 550); // restore the line under his fall (his fall path

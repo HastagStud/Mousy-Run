@@ -1,4 +1,4 @@
-// Mount-touch rule (Larry 2026-10-26): a line that isn't connected to
+// Mount-touch rule (Jack 2026-10-26): a line that isn't connected to
 // the platform the mouse is on is not usable — he falls instead of
 // climbing it. Touch = the segment's height over the shared x-range
 // of segment span and platform span overlaps [top - 54, top + 54]
@@ -10,7 +10,7 @@ const { loadGame } = require('./harness');
 const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = loadGame();
 
 // M1: near-edge press locks to the platform edge and mounts —
-// the start lock (Larry 2026-10-28) anchors a press within snapR
+// the start lock (Jack 2026-10-28) anchors a press within snapR
 // of the platform, so this line now connects at the edge and
 // climbs to the upper platform instead of falling.
 {
@@ -24,7 +24,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 }
 // M1b: FAR floating line (press > snapR from the platform, no
 // overlap) still never mounts — the lock only anchors near presses.
-// He runs off his ledge for it (Larry 2026-11-05, helping hand
+// He runs off his ledge for it (Jack 2026-11-05, helping hand
 // reverted): he steers toward the line, runs past the edge, and
 // falls to the ground, unmounted.
 {
@@ -56,7 +56,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 }
 
 // M3: line drawn ON another platform, not his -> no mount.
-// He runs off his own ledge for it (Larry 2026-11-05, helping
+// He runs off his own ledge for it (Jack 2026-11-05, helping
 // hand reverted): he steers toward the line, runs past the
 // edge, and falls to the ground, unmounted.
 {
@@ -101,7 +101,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 
 // M5: fall-landing gate — a line that sits BELOW his level and
 // crosses his old fall path must never be mounted or fallen
-// onto. He runs off his ledge for it (Larry 2026-11-05, helping
+// onto. He runs off his ledge for it (Jack 2026-11-05, helping
 // hand reverted) and falls to the ground — the gate itself (an
 // unconnected line can't be fallen onto) still stands in
 // findLanding, so he lands on the ground, never on the line.
@@ -128,7 +128,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
   console.log('[M5] unconnected line under the old fall path: never mounted, runs off and falls to the ground: OK');
 }
 // M5b: fall-landing gate — a FAR line under the old fall path
-// still never mounts. He runs off his ledge for it (Larry
+// still never mounts. He runs off his ledge for it (Jack
 // 2026-11-05, helping hand reverted) and falls through to the
 // ground, because the lock only anchors near presses. The press
 // is placed like M5's so the line stays unconnected (far from
@@ -148,7 +148,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
   assert(S.mode === 'run' && S.surface.type === 'ground', 'M5b: mouse must end on the ground, got surf=' + (S.surface && S.surface.type));
   console.log('[M5b] far line under the old fall path: never mounted, runs off and falls to the ground: OK');
 }
-// M6 (Larry 2026-11-09 log, 430x819: 'When I drew a green line,
+// M6 (Jack 2026-11-09 log, 430x819: 'When I drew a green line,
 // the mouse ignored'): he exits a line onto a platform at its
 // left edge (the exit steps him 4px past the far end, to x=246),
 // where a green line starts at that very node (242,700) and

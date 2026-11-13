@@ -1,4 +1,4 @@
-// Delete badge (Larry 2026-10-26): a small circled x at the kept
+// Delete badge (Jack 2026-10-26): a small circled x at the kept
 // line's midpoint; tapping it deletes the line. Tapping anywhere
 // else on/near the line leaves it alone; tapping the x and then
 // dragging draws a new line instead.

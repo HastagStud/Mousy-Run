@@ -1,4 +1,4 @@
-// Green prediction (Larry 2026-10-27: landing lines are green): the
+// Green prediction (Jack 2026-10-27: landing lines are green): the
 // line touches the platform he's on, is mountable, and its far end
 // LANDS him — exact touch, edge snap, step-up, or drop (the exit's
 // own landing check, shared). Crossing lines and unconnected starts
@@ -51,7 +51,7 @@ console.log('[G1] step-on line is green: OK');
   assert(drawLine([short], 50, [100, 700], [200, 560]) === false, 'G4');
   console.log('[G4] open-air line is not green: OK');
 }
-// G5: unclimbable -> amber (vertical: Larry 2026-11-05 —
+// G5: unclimbable -> amber (vertical: Jack 2026-11-05 —
 // only a line within 1.5deg of vertical is rejected now)
 assert(drawLine([lower, upper], 50, [100, 700], [100, 550]) === false, 'G5');
 console.log('[G5] unclimbable line is not green: OK');
@@ -94,11 +94,11 @@ console.log('[G5] unclimbable line is not green: OK');
   console.log('[N5] face-bottom-edge line is green: OK');
 }
 // D1: drop back onto his own platform -> amber (it lands, but
-// nowhere new — Larry 2026-10-27: a steep line that drops him
+// nowhere new — Jack 2026-10-27: a steep line that drops him
 // where he started must not show green), yet he still lands
 // back safely (the exit's drop-back is untouched). Geometry
 // chosen so B cannot snap it (far end 69px from the upper edge,
-// past snapR) — Larry's original log line now snaps under B
+// past snapR) — Jack's original log line now snaps under B
 // and is covered by S8 in test_snap.js instead.
 {
   const origin = { x1: 846.92, x2: 1366, y: 719 };
@@ -108,7 +108,7 @@ console.log('[G5] unclimbable line is not green: OK');
   assert(landed === origin, 'D1: drop-back line must still land him back safely');
   console.log('[D1] drop-back line is amber but lands him back safely: OK');
 }
-// C1 (updated Larry 2026-10-29): a same-row drop is now AMBER —
+// C1 (updated Jack 2026-10-29): a same-row drop is now AMBER —
 // it lands somewhere new but not onward, and with scroll the row
 // slides down during the climb (his log: dropped to the same
 // row's other segment, which had scrolled to the screen bottom,

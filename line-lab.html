@@ -69,7 +69,7 @@ function rowsText(){
   return out.join(' ');
 }
 let lastLiveGreen = null, lastFarNodeKey = null;
-let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Larry 2026-11-02)
+let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Jack 2026-11-02)
 function noteLiveGreen(){
   const seg = fingerSegment();
   if (!seg || !finger) return;
@@ -218,7 +218,7 @@ function farSnapFrom(lockedX, lockedY, farX, farY){
 // ground (no gaps) get none. Rows tile [0,W] except gaps, so an
 // interior edge always leads to a gap. Derived from the
 // platforms each call, so they ride scroll with them.
-// Nodes sit CENTERED on the platform's drawn line (Larry
+// Nodes sit CENTERED on the platform's drawn line (Jack
 // 2026-11-01): the lab draws platforms as a 10px bar from
 // p.y - 10 to p.y, so the dot's center is p.y - 5, not p.y
 // (the bar's bottom edge).
@@ -245,7 +245,7 @@ function nearestNode(x, y, radius, exX, exY){
 // The line under the finger: node-locked > snap-locked >
 // start-locked (with far snap) > B snap (start to nearest platform
 // + far to an edge above it, both within snapR) > raw.
-// Far-end node snap for ANY line (Larry 2026-11-02): if the
+// Far-end node snap for ANY line (Jack 2026-11-02): if the
 // finger ends within NODE_R of a node (other than the line's
 // start), the far end snaps to that node — the node wins over
 // a B edge snap. Fires the SNAP log + snap flash once per
@@ -254,7 +254,7 @@ function nearestNode(x, y, radius, exX, exY){
 // every frame — keying by position logged a SNAP on every
 // frame. Shared with the nodeLock branch, which now goes
 // through here too.
-// B edge on a node-edge (Larry 2026-11-02): B and node snap
+// B edge on a node-edge (Jack 2026-11-02): B and node snap
 // to TWO points for the SAME edge — B to the bar's bottom
 // (x, p.y), the node to its center (x, p.y-5). A B-snapped
 // far end sitting on an edge that HAS a node is moved onto
@@ -286,7 +286,7 @@ function farNodeSnap(seg){
   return { ...seg, bx: n.x, by: n.y };
 }
 
-// Nodes a green line snaps into (Larry 2026-11-02): the far
+// Nodes a green line snaps into (Jack 2026-11-02): the far
 // node of a line that is green AND snapped into that node.
 // Live line + kept lines both count (kept lines qualify now
 // that any line's far end snaps into a node, so a kept line's
@@ -344,7 +344,7 @@ function fingerSegment(){
     let far = dAx >= dBx ? { x: live.ax, y: live.ay } : { x: live.bx, y: live.by };
     const snapped = farSnapFrom(stx, sty, far.x, far.y);
     if (snapped) far = snapped;
-    // Far-node snap wins over the B edge above (Larry
+    // Far-node snap wins over the B edge above (Jack
     // 2026-11-02: any line's far end snaps into a node).
     return farNodeSnap({ ax: stx, ay: sty, bx: far.x, by: far.y });
   }
@@ -371,7 +371,7 @@ function fingerSegment(){
 // --- platforms: random rows, generated above as scroll proceeds ---
 function spacing(){ return 96 + Math.random() * 192; }
 function genRow(y){
-  // Every row has a gap (Larry 2026-10-29) — no solid floors.
+  // Every row has a gap (Jack 2026-10-29) — no solid floors.
   // Same bounds as the game generator: gaps >= 100, segments >= 60.
   const segs = [];
   const gapW = 100 + Math.random() * 120;
@@ -499,7 +499,7 @@ function render(){
   if (farPreview && !greenSet.has(farPreview.x + ',' + farPreview.y)){
     ctx.strokeStyle = '#1e7d32'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(farPreview.x, farPreview.y, NODE_DRAW + 9, 0, Math.PI * 2); ctx.stroke();
   }
-  // Snap flash (Larry 2026-11-02): one expanding, fading ring
+  // Snap flash (Jack 2026-11-02): one expanding, fading ring
   // + a brief bright glow on the node the line just snapped
   // into. ~250ms, then it settles into the node's state color.
   if (snapFlash){
@@ -532,7 +532,7 @@ function render(){
   noteLiveGreen();
 }
 function tick(){
-  // No auto-scroll (Larry 2026-10-29 — line drawing only):
+  // No auto-scroll (Jack 2026-10-29 — line drawing only):
   // platforms stay put; scrollWorld still exists for tests.
   render();
   requestAnimationFrame(tick);

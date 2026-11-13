@@ -1,4 +1,4 @@
-// Point-again rule (Larry 2026-10-26): drawing a line, then pointing
+// Point-again rule (Jack 2026-10-26): drawing a line, then pointing
 // on the screen again, must not make the line vanish. Two paths:
 // (1) a second finger while one is held must be ignored entirely
 // (first finger wins); (2) a quick tap must not replace a kept line

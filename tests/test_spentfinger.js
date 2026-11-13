@@ -1,4 +1,4 @@
-// Per-finger spent (Larry 2026-10-28: continue onto the next
+// Per-finger spent (Jack 2026-10-28: continue onto the next
 // ramp): disembarking, departing, or crossing a LIVE line spends
 // only that line's finger. A kept line's exit spends no finger,
 // so a line drawn while climbing stays live (and mountable)

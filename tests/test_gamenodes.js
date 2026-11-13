@@ -1,4 +1,4 @@
-// Nodes in the endless game (Larry 2026-10-29, ported from the
+// Nodes in the endless game (Jack 2026-10-29, ported from the
 // Line Lab): blue circles only at platform ends leading to a
 // gap, from either direction. Press on one locks the start to
 // it exactly; end in one and the far end snaps to it; both
@@ -65,7 +65,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   release();
   console.log('[G5] kept node line is green and its badge deletes it: OK');
 }
-// G6 (Larry 2026-10-29: a line not fully connected to a node
+// G6 (Jack 2026-10-29: a line not fully connected to a node
 // turns green): a node line whose far end floats short of a
 // node is AMBER — live and kept — even though it would land via
 // edge-snap/face tolerance. Amber is a warning, not a block:
@@ -119,7 +119,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(S.mode === 'run' && S.surface === origin, 'G3: must keep running on his own platform');
   console.log('[G3] node-locked start rides scroll, far end at finger: OK');
 }
-// G7 (Larry 2026-11-02): a node turns green exactly when a
+// G7 (Jack 2026-11-02): a node turns green exactly when a
 // green line snaps into it — live and kept — and stays orange
 // when the snapped line is amber, or when it is only the start
 // node of a green line.
@@ -145,7 +145,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(!T.greenNodes().includes('300,707'), 'G7c: far node of an amber line must stay orange');
   console.log('[G7] green node on green snap (live + kept), orange on amber/start: OK');
 }
-// G8 (Larry 2026-11-02): snapping into a node flashes it once
+// G8 (Jack 2026-11-02): snapping into a node flashes it once
 // (~250ms), then it settles — no continuous flashing while the
 // line stays snapped.
 {
@@ -169,7 +169,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(T.getSnapFlash() === null, 'G8: flash must expire after ~250ms');
   console.log('[G8] snap flash fires once and expires: OK');
 }
-// G9 (Larry 2026-11-02): ANY line's far end snaps into a
+// G9 (Jack 2026-11-02): ANY line's far end snaps into a
 // node — not just node-locked lines. A start-locked line
 // ending near a node snaps to it exactly (node wins over the
 // B edge: B would give (280,550), the node gives (280,557)),
@@ -194,7 +194,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   release();
   assert(T.greenNodes().includes('280,557'), 'G9b: far node of a kept green snapped line must stay green');
   // (c) unclimbable line must NOT snap: the vertical line is
-  // too steep to climb (Larry 2026-11-05: only near-vertical
+  // too steep to climb (Jack 2026-11-05: only near-vertical
   // is unclimbable now), so the node snap must not fire at
   // all — no snap to the node, no SNAP log, no flash.
   // The far end stays on the B edge / raw finger (280,550).
@@ -216,11 +216,11 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(T.getSnapFlash() && Math.round(T.getSnapFlash().x) === 120 && Math.round(T.getSnapFlash().y) === 707, 'G9d: amber-but-climbable snap must still flash, got ' + JSON.stringify(T.getSnapFlash()));
   console.log('[G9] any-line far-node snap (node over B, green node, flash; unclimbable never snaps, climbable amber still flashes): OK');
 }
-// G10 (Larry 2026-11-02): B edge on a node-edge converts to
+// G10 (Jack 2026-11-02): B edge on a node-edge converts to
 // the node. Finger 35px from the node (outside the 28px
 // finger-node radius, inside B's 64px edge radius) B-snaps
 // to the edge (250,550); the far end must then move onto
-// the node (250,557) and turn it green — Larry's kept lines
+// the node (250,557) and turn it green — Jack's kept lines
 // ended on edges 7px from their nodes, so no node went green.
 {
   const lower = { x1: 0, x2: 390, y: 700 };
@@ -234,7 +234,7 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(T.log.join(' ').includes('SNAP far=(250,557)'), 'G10: conversion must log SNAP far=');
   console.log('[G10] B edge on a node-edge converts onto the node and turns it green: OK');
 }
-// G11 (Larry 2026-11-05, from his pasted log, revised by his
+// G11 (Jack 2026-11-05, from his pasted log, revised by his
 // "isn't vertical" ruling the same day): the node-to-node line
 // at 77deg is climbable now, so it DOES snap — and he climbs
 // it and lands on the upper row — but it stays amber, because
@@ -258,6 +258,6 @@ const nodeKey = (n) => n.x + ',' + n.y;
   assert(!g11.T.greenNodes().includes('1142,597'), 'G11: far node of an amber line must stay orange');
   const landed = g11.settle(400);
   assert(landed === row10, 'G11: he must still climb the 77deg line and land on the upper row, got ' + (landed && landed.row));
-  console.log('[G11] 77deg node-to-node line snaps and climbs (Larry log case, amber on the edge-exit): OK');
+  console.log('[G11] 77deg node-to-node line snaps and climbs (Jack log case, amber on the edge-exit): OK');
 }
 console.log('ALL GAME-NODE TESTS PASSED');

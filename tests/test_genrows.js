@@ -1,4 +1,4 @@
-// Multi-gap rows + inconsistent gap sizes (Larry 2026-11-01).
+// Multi-gap rows + inconsistent gap sizes (Jack 2026-11-01).
 // Stress the generator over 2000 rows: every accepted row must
 // still satisfy the worst-travel winnability cap, every gap must
 // be >= 100px, every platform >= 60px (minus 1px float dust),
@@ -10,7 +10,7 @@ let prevGaps = [{ c: 70, w: 100 }];
 let topY = T.groundY, idx = 0;
 let multi = 0, maxGap = 0, minGap = Infinity, maxGapsPerRow = 0;
 const platBefore = T.platforms.length;
-// Speed formula (Larry 2026-11-05): s = a*L/h with L = (W-g)+d,
+// Speed formula (Jack 2026-11-05): s = a*L/h with L = (W-g)+d,
 // g = minimum gap 100px — s is round(a*L/h) and s/a matches L/h
 // within rounding (at most 0.5px/s, i.e. 0.0042 on the ratio).
 assert(T.CFG.speed === Math.round(T.SCROLL_A * T.PATH_L / T.ROW_H), 'genrows: s must be round(a*L/h), got ' + T.CFG.speed);
@@ -43,7 +43,7 @@ assert(maxGap > 200, 'genrows: wide gaps must occur (max ' + maxGap + ')');
 assert(minGap >= 100, 'genrows: no gap below 100px (min ' + minGap + ')');
 console.log('[genrows] ' + N + ' rows: ' + multi + ' multi-gap, max gap ' + Math.round(maxGap) + 'px, min gap ' + Math.round(minGap) + 'px, max ' + maxGapsPerRow + ' gaps/row, all winnable, all platforms >= 60px: OK');
 
-// Wide screen (Larry 2026-11-06: lengthen the pieces): on a 1307px
+// Wide screen (Jack 2026-11-06: lengthen the pieces): on a 1307px
 // iPad the multi-gap pieces must grow with the width instead of
 // staying at the 60-80px phone size — same winnability cap, same
 // floors, but mean segment length well above the phone's ~70px and

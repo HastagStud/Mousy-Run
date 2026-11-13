@@ -1,8 +1,8 @@
-// Drawing while embarked, one line (Larry 2026-11-09, for
+// Drawing while embarked, one line (Jack 2026-11-09, for
 // now): when the mouse embarks on the kept line and another is
 // drawn, he must not jump off it. The climb keeps the line he
 // mounted (S.climbSeg); the new line replaces the kept one on
-// release (Larry 2026-11-09: you can draw a new line while
+// release (Jack 2026-11-09: you can draw a new line while
 // climbing a locked line), and he keeps climbing the old line
 // until he exits it. A live-line climb still drops him on a new
 // press (test_point T2, preserved).
@@ -84,7 +84,7 @@ const mountFirst = () => { for (let i = 0; i < 200 && !(S.surface && S.surface.t
   assert(!S.climbSeg, 'C4: the climbed line must be cleared after the exit');
   console.log('[C4] draw while climbing, release, exit onto the upper platform, new line stays: OK');
 }
-// C5 (Larry 2026-11-09 log, 430x819: 'id draw a line and it
+// C5 (Jack 2026-11-09 log, 430x819: 'id draw a line and it
 // would be two lines'): he mounts a LIVE line, its far end snaps
 // mid-climb, then he releases — the live line becomes the kept
 // line, and he must keep climbing THAT (snapped) line, not the

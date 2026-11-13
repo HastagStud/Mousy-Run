@@ -2,7 +2,7 @@
 """
 Mouse Ramp — row generator + no-win stress test (2026-10-26).
 
-Model (Larry's n / N / x, derived 2026-10-26):
+Model (Jack's n / N / x, derived 2026-10-26):
   s     = mouse horizontal run speed, FIXED (px/s)
   a     = frame auto-scroll speed, FIXED (px/s)
   h_i   = vertical spacing between row i and row i+1 (px)
@@ -24,7 +24,7 @@ Model (Larry's n / N / x, derived 2026-10-26):
           burst of hard rows early can kill before easy rows arrive
           (see the burst demo below).
 
-Row layout rules (Larry's randomness constraints):
+Row layout rules (Jack's randomness constraints):
   * screen width W; every gap width >= 100 px (mouse is ~54 px wide)
   * every platform segment >= 60 px (mouse-width to stand on)
   * row spacing h_i uniform in [96, 288] px (the spec's 1-3 inches

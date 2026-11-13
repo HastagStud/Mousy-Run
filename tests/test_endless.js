@@ -34,14 +34,14 @@ const { T, S, assert, tick, setWorld } = loadGame();
 {
   T.buildWorld();
   assert(!T.scrolling, 'endless: scrolling must start off');
-  // scroll starts when he gets onto row 1 (Larry 2026-11-09) —
+  // scroll starts when he gets onto row 1 (Jack 2026-11-09) —
   // not at mid-screen. Stand on a row-1 platform (well below
   // mid-screen) and it starts on the first tick.
   const row1 = { x1: 0, x2: T.getW(), y: T.getH() - 100, row: 1 };
   S.x = 100; S.y = row1.y; S.surface = row1; S.mode = 'run'; S.dir = 1; S.vy = 0;
   tick();
   assert(T.scrolling, 'endless: reaching row 1 must start scrolling');
-  // Cap (Larry 2026-11-09): the world never moves faster than
+  // Cap (Jack 2026-11-09): the world never moves faster than
   // the current ramp speed (curA). Rise above mid-screen and the
   // world shifts down by the scroll alone — no follow shove —
   // and he stays above the middle instead of being pulled back

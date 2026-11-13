@@ -1,4 +1,4 @@
-// Ball cats (Larry 2026-11-10, villains/obstacles for Mousy Run):
+// Ball cats (Jack 2026-11-10, villains/obstacles for Mousy Run):
 // a cat is a ball about the mouse's size, walking a platform.
 // Colours join at their own rows (Orange Tabby 5, Black 20,
 // Cream Calico 50, White 100) and each walks at its own pace
@@ -31,7 +31,7 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
   for (const p of T.platforms){
     if (!p.cats || !p.cats.length) continue;
     perRow[p.row] = (perRow[p.row] || 0) + p.cats.length;
-    if (p.cats.length > 1) violations++; // one cat per platform (Larry 2026-11-11): a row may hold several, each on its own segment
+    if (p.cats.length > 1) violations++; // one cat per platform (Jack 2026-11-11): a row may hold several, each on its own segment
     if (p.row < T.CAT_MIN_ROW) violations++;
     if (p.x2 - p.x1 < T.CAT_MIN_SEG) violations++;
     if (p.trapX !== undefined && p.trapX !== null) violations++; // never shares a segment with a trap

@@ -1,4 +1,4 @@
-// Speed ramp (Larry 2026-11-09): the game speeds up as he
+// Speed ramp (Jack 2026-11-09): the game speeds up as he
 // climbs — the scroll gains RAMP_PER_ROW for every row
 // reached, up to RAMP_MAX_A, and the mouse speed follows the
 // formula (s = a*L/h), so the climb timing stays right and
@@ -88,7 +88,7 @@ const speedLogs = () => T.log.filter(l => l.includes('SPEED'));
   tick(); // ramp to the cap
   assert(T.curA === 90, 'ramp: must be at the cap for the scroll check');
   // scrolling is already on (it started when he reached row 20 —
-  // scroll starts at row 1, Larry 2026-11-09, not at mid-screen).
+  // scroll starts at row 1, Jack 2026-11-09, not at mid-screen).
   // Stand on a plain platform (no row, so the ramp does not move)
   // to measure the shift at the ramped speed.
   const mid = { x1: 0, x2: T.getW(), y: T.getH() / 2 - 10 };

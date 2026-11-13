@@ -1,4 +1,4 @@
-// Soft rounded clouds (Larry 2026-11-06): decoration only — they
+// Soft rounded clouds (Jack 2026-11-06): decoration only — they
 // drift slowly left in screen space, wrap around, and never touch
 // gameplay (no collision, no scroll/follow).
 const { loadGame } = require('./harness');

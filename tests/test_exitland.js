@@ -1,4 +1,4 @@
-// Guaranteed landing (Larry 2026-10-30): green must mean the
+// Guaranteed landing (Jack 2026-10-30): green must mean the
 // EXIT puts him ON the platform, not beside it. The engine steps
 // him 4px past the far end in his running direction (clamped to
 // 6px outside the platform), so a far end a hair inside an edge,

@@ -21,7 +21,7 @@ assert(S.keptSeg === null, 'D1: disembark with finger held -> no kept line');
 assert(sandbox.fingerBlocker() === null, 'D1: disembark with finger held -> no blocker');
 console.log('[D1] disembark with finger held: line gone, press inert: OK');
 // D2: held press after disembark stays inert. He runs off the
-// upper platform for it (Larry 2026-11-05, helping hand
+// upper platform for it (Jack 2026-11-05, helping hand
 // reverted): with no line to climb he runs to the edge and falls
 // — the press being inert is the point, not staying put.
 for (let i = 0; i < 60; i++) tick();

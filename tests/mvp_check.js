@@ -2,7 +2,7 @@
 // Run: node tests/mvp_check.js  (from the mouse-ramp-game folder).
 // Covers the rules ported from endless: nodes, start lock, B snap,
 // node-green, onward green, two lines, per-finger spent, and the
-// guaranteed-landing exit rule (Larry 2026-10-30).
+// guaranteed-landing exit rule (Jack 2026-10-30).
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -206,7 +206,7 @@ release();
   const line = { ax: 100, ay: 700, bx: 60, by: 600, len: Math.hypot(40, 100) };
   assert(T.lineWillLand(line) === true, 'E2 exit onto the ledge green (live)');
 }
-// E3: log-exact case — Larry's (172,331)-(112,183) line, exiting at
+// E3: log-exact case — Jack's (172,331)-(112,183) line, exiting at
 // 108 beside a ledge starting at 111.8, must be amber (live + kept).
 {
   const logPlats = [
@@ -235,7 +235,7 @@ release();
   const line = { ax: 52, ay: 331, bx: 112, by: 183, len: Math.hypot(60, 148) };
   assert(T.lineWillLand(line) === true, 'E4 log-exact on-exit line green (live)');
 }
-// V9 (Larry 2026-11-02): green node — far node of a green
+// V9 (Jack 2026-11-02): green node — far node of a green
 // snapped line turns green (live + kept); start node and
 // amber-snapped far nodes stay orange.
 {
@@ -255,7 +255,7 @@ release();
   assert(!T.greenNodes().includes('300,707'), 'V9 far node of an amber line must stay orange');
   release();
 }
-// V10 (Larry 2026-11-02): snap flash — fires once on a node
+// V10 (Jack 2026-11-02): snap flash — fires once on a node
 // snap (even an amber one) and expires after ~250ms.
 {
   setWorld([{ x1: 100, x2: 300, y: 700 }], 150, 700, 1);
@@ -269,7 +269,7 @@ release();
   assert(T.getSnapFlash() === null, 'V10 flash must expire after ~250ms');
   release();
 }
-// V11 (Larry 2026-11-02): any line's far end snaps into a
+// V11 (Jack 2026-11-02): any line's far end snaps into a
 // node — start-locked line, node wins over the B edge
 // (B would give (150,500), the node gives (150,507)),
 // green node when green, flash on snap, kept stays green.
@@ -286,7 +286,7 @@ release();
   release();
   assert(T.greenNodes().includes('150,507'), 'V11 far node of a kept green snapped line must stay green');
 }
-// V12 (Larry 2026-11-02, revised 2026-11-05): an unclimbable
+// V12 (Jack 2026-11-02, revised 2026-11-05): an unclimbable
 // amber line must NOT snap — the far end stays raw, the node
 // stays orange, no flash for it. (Vertical now: only a line
 // within 1.5deg of vertical is unclimbable, so the node must
@@ -314,7 +314,7 @@ release();
   assert(T.getSnapFlash() && Math.round(T.getSnapFlash().x) === 300 && Math.round(T.getSnapFlash().y) === 707, 'V12b amber-but-climbable snap must still flash, got ' + JSON.stringify(T.getSnapFlash()));
   release();
 }
-// V13 (Larry 2026-11-02): B edge on a node-edge converts to
+// V13 (Jack 2026-11-02): B edge on a node-edge converts to
 // the node (same annulus case as G10, static game).
 {
   setWorld([{ x1: 0, x2: 390, y: 700 }, { x1: 250, x2: 390, y: 500 }], 100, 700, 1);
@@ -326,7 +326,7 @@ release();
   release();
 }
 
-// T7: first line first (Larry 2026-11-03): with a kept first line
+// T7: first line first (Jack 2026-11-03): with a kept first line
 // pending, a live second line must not be mounted before it — he
 // runs past the second line's foot and mounts the first.
 {
@@ -349,7 +349,7 @@ release();
   assert(!S.keptSeg2, 'T7 the disembarked slot must be free');
 }
 
-// Clouds (endless parity, Larry 2026-11-06): soft rounded whites
+// Clouds (endless parity, Jack 2026-11-06): soft rounded whites
 // drifting slowly left in screen space, wrapping around.
 {
   assert(T.clouds.length >= 3, 'clouds: at least 3 clouds, got ' + T.clouds.length);
@@ -371,7 +371,7 @@ release();
   console.log('ok: clouds drift left and wrap');
 }
 
-// Capabilities modal ("?" button, Larry 2026-11-06): opens on
+// Capabilities modal ("?" button, Jack 2026-11-06): opens on
 // demand, draws the three pictures, closes again, and never
 // disturbs the game state.
 {
@@ -390,7 +390,7 @@ release();
   T.closeHelp();
   console.log('ok: capabilities modal opens, draws three pictures, closes cleanly');
 }
-// Mount-behind (Larry 2026-11-09, ported from endless): a bridge
+// Mount-behind (Jack 2026-11-09, ported from endless): a bridge
 // drawn back from the platform edge he just landed on mounts at
 // its near end — he turns toward it instead of running past it
 // off the edge. He exits onto a platform running right, with a

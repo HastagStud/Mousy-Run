@@ -1,4 +1,4 @@
-// Alternating-gap model test copy (Larry 2026-11-03).
+// Alternating-gap model test copy (Jack 2026-11-03).
 // Loads endless-alt.html ONLY — the main game and its suite are
 // untouched. Run separately: node tests/test_alt.js (not in
 // run_all.sh, so deleting the copy later breaks nothing).
@@ -10,7 +10,7 @@ const W = T.getW(), H = T.getH();
 // derives the speeds, it does not gate rows).
 {
   // Equation check (once, before the loop): s/a must equal
-  // L/h from Larry's premise, with s rounded from a.
+  // L/h from Jack's premise, with s rounded from a.
   assert(Math.abs(T.SPEED_RATIO - T.PATH_L / T.ROW_H) < 1e-9, 'A: s/a must equal L/h, got ' + T.SPEED_RATIO);
   assert(T.CFG.speed === Math.round(T.SCROLL_A * T.SPEED_RATIO), 'A: s must be round(a * L/h), got ' + T.CFG.speed);
   assert(T.PATH_L / T.CFG.speed <= T.ROW_H / T.SCROLL_A + 1e-9, 'A: Mouse Time L/s must be <= Scroll Time h/a');
