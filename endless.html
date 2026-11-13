@@ -47,6 +47,16 @@
     box-shadow:0 10px 30px rgba(90,70,20,.25); }
   #banner b { font-size:22px; display:block; margin-bottom:4px; }
   #banner span { font-size:14px; color:#7a6a55; }
+  /* Reset button in the death modal (Jack 2026-11-13): the corner Reset
+     is a QA tool and hides in the real game, so the modal carries its
+     own restart. Same cartoonish Luckiest Guy lettering as the rest of
+     the game's display type, orange gradient like PLAY. Always shows
+     — it is part of the game, not a QA tool. */
+  #bannerReset { display:block; margin:14px auto 0; border:0; cursor:pointer;
+    font-family:'Luckiest Guy','Arial Black',sans-serif; font-size:20px; letter-spacing:1px;
+    color:#fff; background:linear-gradient(180deg,#ff9a3d 0%,#ff7a1a 50%,#f26c00 100%);
+    border-radius:999px; padding:10px 28px;
+    box-shadow:0 3px 0 rgba(122,74,0,.45); -webkit-text-stroke:0; }
   #logBtn { position:fixed; top:calc(52px + env(safe-area-inset-top)); right:12px;
     border:1px solid #c9b896; background:rgba(255,248,234,.88); color:#5a4632;
     border-radius:999px; padding:7px 14px; font-size:13px; }
@@ -82,7 +92,7 @@
 <div id="points"><span id="pointsNum">0</span></div>
 <button id="reset" type="button">Reset</button>
 <button id="homeIcon" type="button" aria-label="Home"><svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true"><circle cx="47" cy="6" r="3.5" fill="#fff" stroke="#5a4632" stroke-width="1.5"/><rect x="43" y="10" width="8" height="14" rx="2" fill="#c96f2e" stroke="#5a4632" stroke-width="2.5"/><path d="M4 34 L32 12 L60 34 Z" fill="#ff8c42" stroke="#5a4632" stroke-width="3" stroke-linejoin="round"/><rect x="14" y="34" width="36" height="22" rx="3" fill="#ffe9a8" stroke="#5a4632" stroke-width="3"/><path d="M28 56 V46 Q28 40 32 40 Q36 40 36 46 V56 Z" fill="#8b5a2b" stroke="#5a4632" stroke-width="2"/><circle cx="34" cy="49" r="1.3" fill="#ffe9a8"/><circle cx="21" cy="43" r="4.5" fill="#a8d8ea" stroke="#5a4632" stroke-width="2"/><circle cx="43" cy="43" r="4.5" fill="#a8d8ea" stroke="#5a4632" stroke-width="2"/></svg></button>
-<div id="banner"><b></b><span></span></div>
+<div id="banner"><b></b><span></span><button id="bannerReset" type="button">RESET</button></div>
 
 <button id="logBtn" type="button">LOG</button>
 <div id="logPanel"><textarea id="logText" readonly></textarea><div><button id="logCopy" type="button">Copy log</button><button id="logClose" type="button">Close</button><span id="logStatus"></span></div></div>
@@ -642,6 +652,10 @@ function reset(){
   banner.style.display = 'none';
 }
 document.getElementById('reset').addEventListener('click', reset);
+// Reset in the death modal (Jack 2026-11-13): same restart as the corner
+// Reset, but always visible — the corner one is a QA tool and hides in
+// the real game, so the modal is the only restart after a death there.
+document.getElementById('bannerReset').addEventListener('click', reset);
 // Boost (temporary test helper, Jack 2026-11-11): jump to a point
 // total so the cats for that stage are on screen, without having
 // to play there. Regenerates the world up to the target row, shifts
