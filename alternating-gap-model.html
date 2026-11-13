@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endless climb: the alternating-gap model</title>
+<style>
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #222; background: #fff; margin: 0 auto; padding: 24px 16px 40px; max-width: 480px; line-height: 1.45; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; }
+  p, li { font-size: 15px; }
+  .intro { color: #444; }
+  svg { display: block; width: 100%; height: auto; }
+  .formula { font-size: 17px; background: #f4f4f0; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  .formula b { color: #1e7d32; }
+  .cap { color: #666; font-size: 13px; margin-top: 2px; }
+  dl { font-size: 15px; }
+  dt { font-weight: 700; margin-top: 8px; }
+  dd { margin: 0 0 0 12px; color: #444; }
+  .note { color: #666; font-size: 13px; border-top: 1px solid #ddd; margin-top: 28px; padding-top: 10px; }
+</style>
+</head>
+<body>
+<h1>Endless climb: the alternating-gap model</h1>
+<p class="intro">Every row is a platform with a single gap, and the gaps alternate ends from row to row. The mouse runs the platform, then climbs the drawn diagonal to the next row up — while the world scrolls beneath it.</p>
+
+<h2>1. The rows</h2>
+<svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four rows with gaps alternating ends">
+  <!-- top bracket: full row width x -->
+  <line x1="60" y1="18" x2="360" y2="18" stroke="#666" stroke-width="1.5"/>
+  <line x1="60" y1="14" x2="60" y2="22" stroke="#666" stroke-width="1.5"/>
+  <line x1="360" y1="14" x2="360" y2="22" stroke="#666" stroke-width="1.5"/>
+  <text x="210" y="12" text-anchor="middle" font-size="13" fill="#222">x — full row width</text>
+  <!-- row labels -->
+  <text x="55" y="44" text-anchor="end" font-size="13" fill="#666">row 1</text>
+  <text x="55" y="99" text-anchor="end" font-size="13" fill="#666">row 2</text>
+  <text x="55" y="154" text-anchor="end" font-size="13" fill="#666">row 3</text>
+  <text x="55" y="209" text-anchor="end" font-size="13" fill="#666">row 4</text>
+  <!-- row 1: gap left, solid right -->
+  <rect x="60" y="34" width="70" height="12" fill="none" stroke="#bbb" stroke-width="1.5" stroke-dasharray="4 3" rx="3"/>
+  <rect x="130" y="34" width="230" height="12" fill="#4a4a4a" rx="3"/>
+  <!-- row 2: solid left, gap right -->
+  <rect x="60" y="89" width="230" height="12" fill="#4a4a4a" rx="3"/>
+  <rect x="290" y="89" width="70" height="12" fill="none" stroke="#bbb" stroke-width="1.5" stroke-dasharray="4 3" rx="3"/>
+  <!-- row 3: gap left, solid right -->
+  <rect x="60" y="144" width="70" height="12" fill="none" stroke="#bbb" stroke-width="1.5" stroke-dasharray="4 3" rx="3"/>
+  <rect x="130" y="144" width="230" height="12" fill="#4a4a4a" rx="3"/>
+  <!-- row 4: solid left, gap right -->
+  <rect x="60" y="199" width="230" height="12" fill="#4a4a4a" rx="3"/>
+  <rect x="290" y="199" width="70" height="12" fill="none" stroke="#bbb" stroke-width="1.5" stroke-dasharray="4 3" rx="3"/>
+  <!-- row 1 brackets: gap g, platform x-g -->
+  <line x1="60" y1="62" x2="130" y2="62" stroke="#666" stroke-width="1.5"/>
+  <line x1="60" y1="58" x2="60" y2="66" stroke="#666" stroke-width="1.5"/>
+  <line x1="130" y1="58" x2="130" y2="66" stroke="#666" stroke-width="1.5"/>
+  <text x="95" y="78" text-anchor="middle" font-size="13" fill="#222">g</text>
+  <line x1="130" y1="62" x2="360" y2="62" stroke="#666" stroke-width="1.5"/>
+  <line x1="130" y1="58" x2="130" y2="66" stroke="#666" stroke-width="1.5"/>
+  <line x1="360" y1="58" x2="360" y2="66" stroke="#666" stroke-width="1.5"/>
+  <text x="245" y="78" text-anchor="middle" font-size="13" fill="#222">x − g</text>
+  <!-- h arrow: row 1 to row 2, right margin -->
+  <line x1="382" y1="40" x2="382" y2="95" stroke="#666" stroke-width="1.5"/>
+  <polygon points="382,34 378,44 386,44" fill="#666"/>
+  <polygon points="382,101 378,91 386,91" fill="#666"/>
+  <text x="372" y="70" text-anchor="end" font-size="13" fill="#222">h</text>
+</svg>
+<p class="cap">Each row's solid platform is x − g long. The gap switches ends every row, so the next row's platform always ends g short of this row's end.</p>
+
+<h2>2. The diagonal</h2>
+<svg viewBox="0 0 400 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Right triangle with legs h and g and hypotenuse d">
+  <!-- upper platform + its gap -->
+  <rect x="60" y="74" width="200" height="12" fill="#4a4a4a" rx="3"/>
+  <rect x="260" y="74" width="80" height="12" fill="none" stroke="#bbb" stroke-width="1.5" stroke-dasharray="4 3" rx="3"/>
+  <text x="60" y="66" font-size="13" fill="#666">upper platform</text>
+  <!-- gap bracket above the upper gap -->
+  <line x1="260" y1="60" x2="340" y2="60" stroke="#666" stroke-width="1.5"/>
+  <line x1="260" y1="56" x2="260" y2="64" stroke="#666" stroke-width="1.5"/>
+  <line x1="340" y1="56" x2="340" y2="64" stroke="#666" stroke-width="1.5"/>
+  <text x="300" y="54" text-anchor="middle" font-size="13" fill="#222">g</text>
+  <!-- lower platform -->
+  <rect x="60" y="154" width="280" height="12" fill="#4a4a4a" rx="3"/>
+  <text x="60" y="148" font-size="13" fill="#666">lower platform</text>
+  <!-- right triangle, dashed -->
+  <line x1="260" y1="92" x2="260" y2="148" stroke="#999" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="250" y="125" text-anchor="end" font-size="13" fill="#222">h</text>
+  <line x1="260" y1="176" x2="340" y2="176" stroke="#999" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <line x1="260" y1="166" x2="260" y2="176" stroke="#999" stroke-width="1.5"/>
+  <line x1="340" y1="166" x2="340" y2="176" stroke="#999" stroke-width="1.5"/>
+  <text x="300" y="192" text-anchor="middle" font-size="13" fill="#222">g</text>
+  <!-- the drawn diagonal (ramp) -->
+  <line x1="340" y1="160" x2="260" y2="80" stroke="#1e7d32" stroke-width="5" stroke-linecap="round"/>
+  <text x="314" y="110" text-anchor="middle" font-size="15" font-weight="700" fill="#1e7d32">d</text>
+  <!-- mouse at the foot -->
+  <circle cx="340" cy="160" r="7" fill="#222"/>
+  <text x="340" y="192" text-anchor="middle" font-size="13" fill="#666">mouse</text>
+</svg>
+<div class="formula"><b>d</b> = √(h² + g²)</div>
+<p class="cap">From the lower platform's end, the ramp reaches the upper platform's edge: it rises h while running g sideways, so the ramp itself is the hypotenuse.</p>
+
+<h2>3. The two speeds</h2>
+<svg viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mouse path versus scroll">
+  <!-- mouse path: along the platform, then up the diagonal -->
+  <rect x="30" y="90" width="180" height="12" fill="#4a4a4a" rx="3"/>
+  <line x1="40" y1="70" x2="180" y2="70" stroke="#1e7d32" stroke-width="3" stroke-linecap="round"/>
+  <line x1="180" y1="70" x2="240" y2="30" stroke="#1e7d32" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="240,30 228,34 236,44" fill="#1e7d32"/>
+  <text x="110" y="58" text-anchor="middle" font-size="13" fill="#1e7d32">mouse — speed s</text>
+  <text x="120" y="120" text-anchor="middle" font-size="13" fill="#666">platform: x − g</text>
+  <!-- scroll: world moves down -->
+  <line x1="320" y1="30" x2="320" y2="100" stroke="#3a86ff" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="320,112 312,98 328,98" fill="#3a86ff"/>
+  <text x="320" y="130" text-anchor="middle" font-size="13" fill="#3a86ff">scroll — h per second</text>
+</svg>
+<div class="formula">Mouse path = (x − g) + d<br>Mouse time <b>T</b> = ((x − g) + d) / s</div>
+<div class="formula">Scroll advance in time T = h × T<br>Scroll row-clock = h / a = <b>1 second per row</b> (since a = h)</div>
+<p class="cap">The race the model sets up: the mouse covers its whole row's path — the full platform plus the diagonal — while the world drops h every second.</p>
+
+<h2>Variables</h2>
+<dl>
+  <dt>x</dt><dd>Full width of a row — one platform's total span.</dd>
+  <dt>g</dt><dd>Length of the single gap in a row.</dd>
+  <dt>x − g</dt><dd>Solid length of each platform.</dd>
+  <dt>h</dt><dd>Vertical distance between successive platforms (rows). This is the H in the diagonal formula.</dd>
+  <dt>d</dt><dd>Drawn diagonal from a platform's end to the next platform's edge: √(h² + g²).</dd>
+  <dt>s</dt><dd>Mouse speed, along the platform and up the diagonal.</dd>
+  <dt>a</dt><dd>Auto-scroll speed, h per second — the world drops one row-spacing every second.</dd>
+  <dt>T</dt><dd>Mouse's time for one row's path: ((x − g) + d) / s.</dd>
+</dl>
+
+<p class="note">Diagram proportions are illustrative, not to game scale — the labels, not the pixel lengths, carry the model. The scroll arrow points down because the world moves down as the mouse climbs.</p>
+</body>
+</html>

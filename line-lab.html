@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Line Lab — draw lines</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #f2efe6; height: 100%; }
+  canvas { display: block; touch-action: none; }
+  #bar { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; align-items: flex-start; pointer-events: none; z-index: 2; }
+  #hint { flex: 1; font: 14px/1.4 system-ui, sans-serif; color: #444; background: rgba(255,255,255,0.75); border-radius: 8px; padding: 8px 10px; }
+  #bar button { pointer-events: auto; font: 15px system-ui, sans-serif; padding: 8px 14px; border-radius: 8px; border: 1px solid #888; background: #fff; }
+  #logPanel { position: fixed; right: 10px; top: 64px; width: 92%; max-height: 60%; overflow: auto; background: #fff; border: 1px solid #888; border-radius: 8px; z-index: 3; }
+  #logBar { position: sticky; top: 0; background: #fff; padding: 6px; text-align: right; }
+  #logBar button { font: 14px system-ui, sans-serif; padding: 6px 12px; border-radius: 8px; border: 1px solid #888; background: #fff; }
+  #logText { margin: 0; padding: 4px 8px 8px; font: 11px monospace; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div id="hint">Draw a line with your finger. Blue circles are nodes: start on one and the line locks to it; end in one and it snaps to it. Green = good line (lands onward). Amber = won't land onward. Tap a line's &times; to delete it.</div>
+  <button id="clearBtn">Clear</button>
+  <button id="newBtn">New</button>
+  <button id="logBtn">LOG</button>
+</div>
+<div id="logPanel" style="display:none"><div id="logBar"><button id="copyBtn">Copy</button><button id="closeLogBtn">&times;</button></div><pre id="logText"></pre></div>
+<canvas id="cv"></canvas>
+<script>
+'use strict';
+// Line Lab: a one-off drawing testbed. Same line logic as the
+// endless game (B snap, nearest-platform start lock, kept-green
+// with the onward rule), but no mouse, no score, no death, no
+// auto-scroll — just random platforms and lines to draw.
+const CFG = { snapR: 64, edgeSnap: 48, transfer: 40, faceH: 14, climb: 54, maxRampDeg: 89.5, scrollA: 120 };
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = window.innerWidth, H = window.innerHeight;
+cv.width = W; cv.height = H;
+let groundY = H - 40;
+const GROUND = { type: 'ground' };
+let platforms = [];   // flat list of {x1, x2, y} segments
+let keptLines = [];   // {ax, ay, bx, by}
+let finger = null;    // {id, px, py, x, y} — press point + current
+let snapLock = null;  // {finger, seg} — a snapped line frozen for this press
+let startLock = null; // {finger, sx, sy} — start locked to a platform, rides scroll
+let nodeLock = null;  // {finger, sx, sy} — start locked to a NODE (exact edge point), rides scroll
+const NODE_R = 28;    // node snap radius: press/end within this of a node locks/snaps to it
+const NODE_DRAW = 11; // node circle radius on screen
+// --- play log (same style as the game): timestamped, last 400 ---
+const LOG_MAX = 400;
+const logLines = [];
+const t0 = performance.now();
+function log(msg){
+  logLines.push(((performance.now() - t0) / 1000).toFixed(2) + 's ' + msg);
+  while (logLines.length > LOG_MAX) logLines.shift();
+}
+const rn = (n) => Math.round(n);
+function segText(s){ return '(' + rn(s.ax) + ',' + rn(s.ay) + ')-(' + rn(s.bx) + ',' + rn(s.by) + ')'; }
+function rowsText(){
+  const byY = new Map();
+  for (const p of platforms){
+    if (!byY.has(p.y)) byY.set(p.y, []);
+    byY.get(p.y).push(p);
+  }
+  let out = [], i = 0;
+  for (const [y, segs] of byY){
+    out.push('row' + (++i) + ' ' + segs.map(s => '[' + rn(s.x1) + ',' + rn(s.x2) + ']').join(' ') + '@' + rn(y));
+  }
+  return out.join(' ');
+}
+let lastLiveGreen = null, lastFarNodeKey = null;
+let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Larry 2026-11-02)
+function noteLiveGreen(){
+  const seg = fingerSegment();
+  if (!seg || !finger) return;
+  const g = keptLineWillLand(seg);
+  if (lastLiveGreen !== null && g !== lastLiveGreen) log('GREEN now=' + g + ' seg=' + segText(seg));
+  lastLiveGreen = g;
+}
+
+function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+function segLen(s){ return Math.hypot(s.bx - s.ax, s.by - s.ay); }
+function segYAt(s, x){
+  if (s.bx === s.ax) return s.ay;
+  return s.ay + (s.by - s.ay) * (x - s.ax) / (s.bx - s.ax);
+}
+function segSpan(s){ return [Math.min(s.ax, s.bx), Math.max(s.ax, s.bx)]; }
+function segClimbable(s){
+  const dx = s.bx - s.ax, dy = s.by - s.ay;
+  if (!dx && !dy) return false;
+  // Slope magnitude, direction-independent: a gentle leftward
+  // line climbs just as well as a gentle rightward one (a bug
+  // here made leftward lines read ~155deg and go amber).
+  return Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI <= CFG.maxRampDeg;
+}
+function segTouchesSurface(seg, surf){
+  const top = surf.type === 'ground' ? groundY : surf.y;
+  const x1 = surf.type === 'ground' ? 0 : surf.x1;
+  const x2 = surf.type === 'ground' ? W : surf.x2;
+  const [lo, hi] = segSpan(seg);
+  const a = Math.max(lo, x1), b = Math.min(hi, x2);
+  if (a > b) return false;
+  const yA = segYAt(seg, a), yB = segYAt(seg, b);
+  return Math.max(yA, yB) >= top - CFG.climb && Math.min(yA, yB) <= top + CFG.climb;
+}
+// The exit's own landing check, shared by green prediction.
+function exitLanding(endX, endY){
+  let plat = null, bestH = Infinity, bestV = Infinity;
+  for (const p of platforms){
+    const vGap = p.y - endY;
+    if (vGap < -CFG.faceH || vGap > CFG.transfer) continue;
+    const hGap = endX < p.x1 ? p.x1 - endX : (endX > p.x2 ? endX - p.x2 : 0);
+    if (hGap > CFG.edgeSnap) continue;
+    const av = Math.abs(vGap);
+    if (hGap < bestH || (hGap === bestH && av < bestV)){ plat = p; bestH = hGap; bestV = av; }
+  }
+  if (plat) return { plat };
+  let drop = null;
+  for (const p of platforms){
+    if (p.y <= endY) continue;
+    const hGap = endX < p.x1 ? p.x1 - endX : (endX > p.x2 ? endX - p.x2 : 0);
+    if (hGap > CFG.edgeSnap) continue;
+    if (!drop || p.y < drop.y) drop = p;
+  }
+  if (drop) return { drop };
+  return null;
+}
+// Green from the LINE's own anchors (no mouse here): climbable,
+// touching some platform or the ground, crossing nothing, far end
+// landing somewhere new from that anchor. A step-on counts
+// wherever it lands; a DROP must land strictly above the anchor
+// (a drop at or below it is backward, not onward).
+function keptLineWillLand(seg){
+  if (!seg || !segClimbable(seg)) return false;
+  const candidates = [];
+  for (const p of platforms) if (segTouchesSurface(seg, p)) candidates.push(p);
+  if (segTouchesSurface(seg, GROUND)) candidates.push(GROUND);
+  for (const p of candidates){
+    const pY = p.type === 'ground' ? groundY : p.y;
+    const gap = (x) => p.type === 'ground' ? 0 : (x < p.x1 ? p.x1 - x : (x > p.x2 ? x - p.x2 : 0));
+    const gapA = gap(seg.ax), gapB = gap(seg.bx);
+    let embark, far;
+    if (gapA < gapB || (gapA === gapB && Math.abs(seg.ay - pY) <= Math.abs(seg.by - pY))){ embark = { x: seg.ax, y: seg.ay }; far = { x: seg.bx, y: seg.by }; }
+    else { embark = { x: seg.bx, y: seg.by }; far = { x: seg.ax, y: seg.ay }; }
+    const dir = Math.abs(far.x - embark.x) > 12 ? Math.sign(far.x - embark.x) : 0;
+    if (!dir) continue;
+    const [lo, hi] = segSpan(seg);
+    const farX = dir > 0 ? hi : lo, farY = segYAt(seg, farX);
+    let blocked = false;
+    if (seg.by !== seg.ay){
+      for (const q of platforms){
+        if (q === p) continue;
+        const fGap = farX < q.x1 ? q.x1 - farX : (farX > q.x2 ? farX - q.x2 : 0);
+        if (fGap <= CFG.edgeSnap && farY >= q.y && farY <= q.y + CFG.faceH) continue;
+        const t = (q.y - seg.ay) / (seg.by - seg.ay);
+        if (t <= 0 || t >= 1) continue;
+        const x = seg.ax + (seg.bx - seg.ax) * t;
+        if (x < q.x1 - 2 || x > q.x2 + 2) continue;
+        blocked = true; break;
+      }
+    }
+    if (blocked) continue;
+    const landing = exitLanding(farX, farY);
+    if (!landing) continue;
+    const dest = landing.plat || landing.drop;
+    if (dest === p) continue;
+    if (landing.drop && dest.y >= pY) continue;
+    return true;
+  }
+  return false;
+}
+// Does seg run through a platform (other than the excluded ones)?
+function snapCrosses(seg, excludePlat, destPlat){
+  if (seg.by === seg.ay) return false;
+  for (const q of platforms){
+    if (q === excludePlat || q === destPlat) continue;
+    const t = (q.y - seg.ay) / (seg.by - seg.ay);
+    if (t <= 0 || t >= 1) continue;
+    const x = seg.ax + (seg.bx - seg.ax) * t;
+    if (x < q.x1 - 2 || x > q.x2 + 2) continue;
+    return true;
+  }
+  return false;
+}
+function nearestPlatformPoint(x, y){
+  // Nearest point on any platform (rows + ground) to (x, y).
+  let best = null, bestD = Infinity;
+  const consider = (plat, nx, ny) => {
+    const d = Math.hypot(x - nx, y - ny);
+    if (d < bestD){ bestD = d; best = { plat, x: nx, y: ny }; }
+  };
+  for (const p of platforms) consider(p, clamp(x, p.x1, p.x2), p.y);
+  consider(GROUND, x, groundY);
+  return { best, bestD };
+}
+function farSnapFrom(lockedX, lockedY, farX, farY){
+  // Nearest edge of a platform ABOVE the locked start, within
+  // snapR, climbable, non-crossing — nearest wins.
+  const cands = [];
+  for (const p of platforms){
+    if (p.y >= lockedY) continue;
+    cands.push({ x: p.x1, y: p.y, plat: p, d: Math.hypot(farX - p.x1, farY - p.y) });
+    cands.push({ x: p.x2, y: p.y, plat: p, d: Math.hypot(farX - p.x2, farY - p.y) });
+  }
+  cands.sort((a, b) => a.d - b.d);
+  for (const e of cands){
+    if (e.d > CFG.snapR) break;
+    const cand = { ax: lockedX, ay: lockedY, bx: e.x, by: e.y };
+    if (!segClimbable(cand)) continue;
+    if (snapCrosses(cand, null, e.plat)) continue;
+    return { x: e.x, y: e.y };
+  }
+  return null;
+}
+// Nodes (circles on screen) appear ONLY at a platform end that
+// leads to a gap, from either direction: both sides of each gap
+// get a node, but a row's outer ends (screen borders) and the
+// ground (no gaps) get none. Rows tile [0,W] except gaps, so an
+// interior edge always leads to a gap. Derived from the
+// platforms each call, so they ride scroll with them.
+// Nodes sit CENTERED on the platform's drawn line (Larry
+// 2026-11-01): the lab draws platforms as a 10px bar from
+// p.y - 10 to p.y, so the dot's center is p.y - 5, not p.y
+// (the bar's bottom edge).
+function allNodes(){
+  const nodes = [];
+  for (const p of platforms){
+    if (p.x1 > 0) nodes.push({ x: p.x1, y: p.y - 5, plat: p, edge: 'left' });
+    if (p.x2 < W) nodes.push({ x: p.x2, y: p.y - 5, plat: p, edge: 'right' });
+  }
+  return nodes;
+}
+// Nearest node within radius of (x, y), optionally excluding the
+// node at (exX, exY) (the start node, so a far end never snaps to
+// the node the line starts on).
+function nearestNode(x, y, radius, exX, exY){
+  let best = null, bestD = Infinity;
+  for (const n of allNodes()){
+    if (exX !== undefined && Math.hypot(n.x - exX, n.y - exY) < 1) continue;
+    const d = Math.hypot(x - n.x, y - n.y);
+    if (d <= radius && d < bestD){ bestD = d; best = n; }
+  }
+  return best;
+}
+// The line under the finger: node-locked > snap-locked >
+// start-locked (with far snap) > B snap (start to nearest platform
+// + far to an edge above it, both within snapR) > raw.
+// Far-end node snap for ANY line (Larry 2026-11-02): if the
+// finger ends within NODE_R of a node (other than the line's
+// start), the far end snaps to that node — the node wins over
+// a B edge snap. Fires the SNAP log + snap flash once per
+// node. Key by node IDENTITY (platform + edge), not position:
+// a snapped node rides the scroll, so its position shifts
+// every frame — keying by position logged a SNAP on every
+// frame. Shared with the nodeLock branch, which now goes
+// through here too.
+// B edge on a node-edge (Larry 2026-11-02): B and node snap
+// to TWO points for the SAME edge — B to the bar's bottom
+// (x, p.y), the node to its center (x, p.y-5). A B-snapped
+// far end sitting on an edge that HAS a node is moved onto
+// the node itself, so it counts as landing on the node.
+// Same once-per-node log + flash as a finger-node snap;
+// skipped when it would degenerate the line.
+function farNodeSnap(seg){
+  if (!seg || !finger) return seg;
+  let n = nearestNode(finger.x, finger.y, NODE_R, seg.ax, seg.ay);
+  if (!n){
+    for (const p of platforms){
+      if (seg.by === p.y && (seg.bx === p.x1 || seg.bx === p.x2)){
+        const isNodeEdge = (seg.bx === p.x1 && p.x1 > 0) || (seg.bx === p.x2 && p.x2 < W);
+        const ny = seg.by - 5;
+        if (isNodeEdge && Math.hypot(seg.bx - seg.ax, ny - seg.ay) >= 1){
+          n = { x: seg.bx, y: ny, plat: p, edge: seg.bx === p.x1 ? 'left' : 'right' };
+        }
+        break;
+      }
+    }
+  }
+  const key = n ? (n.plat === GROUND ? 'ground' : n.plat.x1 + ',' + n.plat.x2) + '-' + n.edge : null;
+  if (key && key !== lastFarNodeKey){
+    log('SNAP far=(' + rn(n.x) + ',' + rn(n.y) + ')');
+    snapFlash = { plat: n.plat, edge: n.edge, x: n.x, y: n.y, t0: performance.now() };
+  }
+  lastFarNodeKey = key;
+  if (!n) return seg;
+  return { ...seg, bx: n.x, by: n.y };
+}
+
+// Nodes a green line snaps into (Larry 2026-11-02): the far
+// node of a line that is green AND snapped into that node.
+// Live line + kept lines both count (kept lines qualify now
+// that any line's far end snaps into a node, so a kept line's
+// far end coincides with its node). The far end must
+// COINCIDE with a node (snapped, ~0px), not merely sit near
+// one. Excludes the start node.
+function greenSnapNodes(){
+  const found = new Map();
+  const consider = (seg) => {
+    if (!seg || !keptLineWillLand(seg)) return;
+    const n = nearestNode(seg.bx, seg.by, 2, seg.ax, seg.ay);
+    if (n) found.set(n.x + ',' + n.y, n);
+  };
+  const live = fingerSegment();
+  if (live) consider(live);
+  for (const s of keptLines) consider(s);
+  return found;
+}
+
+function fingerSegment(){
+  if (!finger) return null;
+  const moved = Math.hypot(finger.x - finger.px, finger.y - finger.py);
+  if (moved < 8) return null;
+  const live = { ax: finger.px, ay: finger.py, bx: finger.x, by: finger.y };
+  if (nodeLock && nodeLock.finger === finger){
+    // Start rides its node down with the scroll; the far end is
+    // the finger, or a node it ends in — the line stretches and
+    // its angle adjusts, staying straight between node and finger.
+    return farNodeSnap({ ax: nodeLock.sx, ay: nodeLock.sy, bx: finger.x, by: finger.y });
+  }
+  if (snapLock && snapLock.finger === finger) return snapLock.seg;
+  if (!startLock || startLock.finger !== finger){
+    if (moved >= 40){
+      const { best, bestD } = nearestPlatformPoint(finger.px, finger.py);
+      if (best && bestD <= CFG.snapR){
+        const anch = best.plat;
+        const anchY = anch.type === 'ground' ? groundY : anch.y;
+        const anchX1 = anch.type === 'ground' ? 0 : anch.x1;
+        const anchX2 = anch.type === 'ground' ? W : anch.x2;
+        let blocked = false;
+        if (live.ay !== live.by){
+          const tt = (anchY - live.ay) / (live.by - live.ay);
+          if (tt > 0 && tt < 1){
+            const footX = live.ax + (live.bx - live.ax) * tt;
+            if (finger.px < anchX1 || finger.px > anchX2 || (footX >= anchX1 && footX <= anchX2)) blocked = true;
+          }
+        }
+        if (!blocked){ startLock = { finger, sx: best.x, sy: anchY }; log('LOCK start=(' + rn(best.x) + ',' + rn(anchY) + ')'); }
+      }
+    }
+  }
+  if (startLock && startLock.finger === finger){
+    const stx = startLock.sx, sty = startLock.sy;
+    const dAx = Math.hypot(live.ax - stx, live.ay - sty), dBx = Math.hypot(live.bx - stx, live.by - sty);
+    let far = dAx >= dBx ? { x: live.ax, y: live.ay } : { x: live.bx, y: live.by };
+    const snapped = farSnapFrom(stx, sty, far.x, far.y);
+    if (snapped) far = snapped;
+    // Far-node snap wins over the B edge above (Larry
+    // 2026-11-02: any line's far end snaps into a node).
+    return farNodeSnap({ ax: stx, ay: sty, bx: far.x, by: far.y });
+  }
+  // B snap fallback (no lock): start end = end nearer the press.
+  const dA = Math.hypot(live.ax - finger.px, live.ay - finger.py);
+  const dB = Math.hypot(live.bx - finger.px, live.by - finger.py);
+  const sE = dA <= dB ? { x: live.ax, y: live.ay } : { x: live.bx, y: live.by };
+  const fE = dA <= dB ? { x: live.bx, y: live.by } : { x: live.ax, y: live.ay };
+  const { best, bestD } = nearestPlatformPoint(sE.x, sE.y);
+  if (best && bestD <= CFG.snapR){
+    const startY = best.plat.type === 'ground' ? groundY : best.plat.y;
+    const snappedFar = farSnapFrom(best.x, startY, fE.x, fE.y);
+    if (snappedFar){
+      const cand = farNodeSnap({ ax: best.x, ay: startY, bx: snappedFar.x, by: snappedFar.y });
+      if (segClimbable(cand) && !snapCrosses(cand, best.plat, null)){
+        snapLock = { finger, seg: cand };
+        log('SNAP raw=' + segText(live) + ' snapped=' + segText(cand));
+        return cand;
+      }
+    }
+  }
+  return farNodeSnap(live);
+}
+// --- platforms: random rows, generated above as scroll proceeds ---
+function spacing(){ return 96 + Math.random() * 192; }
+function genRow(y){
+  // Every row has a gap (Larry 2026-10-29) — no solid floors.
+  // Same bounds as the game generator: gaps >= 100, segments >= 60.
+  const segs = [];
+  const gapW = 100 + Math.random() * 120;
+  const gapX = 60 + Math.random() * Math.max(1, W - 120 - gapW);
+  if (gapX >= 60) segs.push({ x1: 0, x2: gapX, y });
+  if (W - (gapX + gapW) >= 60) segs.push({ x1: gapX + gapW, x2: W, y });
+  // Fallback for windows too narrow to fit a gap + two segments.
+  if (!segs.length) segs.push({ x1: 0, x2: W, y });
+  return segs;
+}
+function buildWorld(){
+  platforms = [];
+  let y = groundY - spacing();
+  while (y > -400){ platforms.push(...genRow(y)); y -= spacing(); }
+}
+function scrollWorld(dt){
+  const shift = CFG.scrollA * dt;
+  groundY += shift;
+  for (const p of platforms) p.y += shift;
+  for (const s of keptLines){ s.ay += shift; s.by += shift; }
+  if (startLock) startLock.sy += shift;
+  if (nodeLock) nodeLock.sy += shift;
+  let top = Infinity;
+  for (const p of platforms) if (p.y < top) top = p.y;
+  while (top > -400){ const ny = top - spacing(); platforms.push(...genRow(ny)); top = ny; }
+  platforms = platforms.filter(p => p.y <= H + 120);
+  keptLines = keptLines.filter(s => s.ay <= H + 120 || s.by <= H + 120);
+}
+// --- pointer input: first pointer wins; taps on a badge delete ---
+function badgeAt(x, y){
+  for (let i = 0; i < keptLines.length; i++){
+    const s = keptLines[i];
+    const mx = (s.ax + s.bx) / 2, my = (s.ay + s.by) / 2;
+    if (Math.hypot(x - mx, y - my) <= 14) return i;
+  }
+  return -1;
+}
+function onDown(x, y, id){
+  if (finger) return;
+  const bi = badgeAt(x, y);
+  const deleted = bi >= 0 ? keptLines[bi] : null;
+  // A badge tap deletes at once, but a drag after it still draws
+  // a new line (game parity) — so a node press under a badge
+  // still starts a node line instead of drawing nothing.
+  if (bi >= 0) keptLines.splice(bi, 1);
+  finger = { id, px: x, py: y, x, y };
+  snapLock = null; startLock = null; nodeLock = null;
+  lastLiveGreen = null; lastFarNodeKey = null;
+  // Press on a node locks the line's start to that node, exactly
+  // (no guard — pressing on a node is choosing it deliberately).
+  const node = nearestNode(x, y, NODE_R);
+  if (node) nodeLock = { finger, sx: node.x, sy: node.y };
+  log('PRESS at=(' + rn(x) + ',' + rn(y) + ')' + (node ? ' node=(' + rn(node.x) + ',' + rn(node.y) + ')' : '') + (bi >= 0 ? ' badge' : ''));
+  if (deleted) log('DELETE line=' + segText(deleted));
+  if (nodeLock) log('NODE start=(' + rn(nodeLock.sx) + ',' + rn(nodeLock.sy) + ')');
+}
+function onMove(x, y, id){
+  if (!finger || finger.id !== id) return;
+  finger.x = x; finger.y = y;
+  noteLiveGreen();
+}
+function onUp(id){
+  if (!finger || finger.id !== id) return;
+  const seg = fingerSegment();
+  if (seg && segLen(seg) >= 8){
+    keptLines.push(seg);
+    log('RELEASE kept=' + segText(seg) + ' green=' + keptLineWillLand(seg));
+  } else log('RELEASE tap');
+  finger = null; snapLock = null; startLock = null; nodeLock = null;
+  lastLiveGreen = null; lastFarNodeKey = null;
+}
+cv.addEventListener('pointerdown', e => { e.preventDefault(); onDown(e.clientX, e.clientY, e.pointerId); });
+cv.addEventListener('pointermove', e => { e.preventDefault(); onMove(e.clientX, e.clientY, e.pointerId); });
+cv.addEventListener('pointerup', e => { e.preventDefault(); onUp(e.pointerId); });
+cv.addEventListener('pointercancel', e => { e.preventDefault(); onUp(e.pointerId); });
+function clearWorld(){ log('CLEAR lines=' + keptLines.length); keptLines = []; }
+function newWorld(){ keptLines = []; finger = null; snapLock = null; startLock = null; nodeLock = null; lastLiveGreen = null; lastFarNodeKey = null; buildWorld(); log('NEW ' + rowsText()); }
+document.getElementById('clearBtn').addEventListener('click', clearWorld);
+document.getElementById('newBtn').addEventListener('click', newWorld);
+document.getElementById('logBtn').addEventListener('click', () => {
+  const panel = document.getElementById('logPanel');
+  if (panel.style.display === 'none'){ document.getElementById('logText').textContent = logLines.join('\n'); panel.style.display = 'block'; }
+  else panel.style.display = 'none';
+});
+document.getElementById('closeLogBtn').addEventListener('click', () => { document.getElementById('logPanel').style.display = 'none'; });
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const text = logLines.join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text); return; }
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+});
+window.addEventListener('resize', () => { W = window.innerWidth; H = window.innerHeight; cv.width = W; cv.height = H; });
+// --- render ---
+function drawLineSeg(s, color, width){
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+}
+function render(){
+  ctx.fillStyle = '#f2efe6'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(0, groundY, W, H - groundY);
+  for (const p of platforms) ctx.fillRect(p.x1, p.y - 10, p.x2 - p.x1, 10);
+  // Nodes: a circle on every platform edge (ground edges too).
+  // Ring the locked start node, and the node the finger would
+  // snap to, so the lock/snap is visible before it happens.
+  let farPreview = null;
+  if (finger && nodeLock && nodeLock.finger === finger){
+    farPreview = nearestNode(finger.x, finger.y, NODE_R, nodeLock.sx, nodeLock.sy);
+  }
+  const greenSet = greenSnapNodes();
+  for (const n of allNodes()){
+    if (greenSet.has(n.x + ',' + n.y)){
+      ctx.fillStyle = '#a5d6a7'; ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW + 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1e7d32'; ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = '#ffc98a'; ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW + 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff7a1a'; ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (nodeLock && nodeLock.finger === finger){
+    ctx.strokeStyle = '#3a86ff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(nodeLock.sx, nodeLock.sy, NODE_DRAW + 9, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (farPreview && !greenSet.has(farPreview.x + ',' + farPreview.y)){
+    ctx.strokeStyle = '#1e7d32'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(farPreview.x, farPreview.y, NODE_DRAW + 9, 0, Math.PI * 2); ctx.stroke();
+  }
+  // Snap flash (Larry 2026-11-02): one expanding, fading ring
+  // + a brief bright glow on the node the line just snapped
+  // into. ~250ms, then it settles into the node's state color.
+  if (snapFlash){
+    const age = performance.now() - snapFlash.t0;
+    if (age < 250){
+      const p = age / 250;
+      const cur = allNodes().find(n => n.plat === snapFlash.plat && n.edge === snapFlash.edge);
+      const fx = cur ? cur.x : snapFlash.x, fy = cur ? cur.y : snapFlash.y;
+      ctx.strokeStyle = 'rgba(165,214,167,' + (1 - p).toFixed(3) + ')';
+      ctx.lineWidth = 5 * (1 - p) + 1;
+      ctx.beginPath(); ctx.arc(fx, fy, NODE_DRAW + 6 + p * 22, 0, Math.PI * 2); ctx.stroke();
+      if (p < 0.5){
+        ctx.fillStyle = 'rgba(255,255,255,' + ((0.5 - p) * 1.2).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(fx, fy, NODE_DRAW, 0, Math.PI * 2); ctx.fill();
+      }
+    } else snapFlash = null;
+  }
+  for (const s of keptLines){
+    const good = keptLineWillLand(s);
+    drawLineSeg(s, good ? 'rgba(30,125,50,0.85)' : 'rgba(217,154,0,0.85)', 16);
+    const mx = (s.ax + s.bx) / 2, my = (s.ay + s.by) / 2;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mx, my, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(mx - 5, my - 5); ctx.lineTo(mx + 5, my + 5);
+    ctx.moveTo(mx + 5, my - 5); ctx.lineTo(mx - 5, my + 5); ctx.stroke();
+  }
+  const live = fingerSegment();
+  if (live) drawLineSeg(live, keptLineWillLand(live) ? '#1e7d32' : '#d99a00', 16);
+  noteLiveGreen();
+}
+function tick(){
+  // No auto-scroll (Larry 2026-10-29 — line drawing only):
+  // platforms stay put; scrollWorld still exists for tests.
+  render();
+  requestAnimationFrame(tick);
+}
+buildWorld();
+log('START ' + rowsText());
+log('SCROLL off');
+requestAnimationFrame(tick);
+// Smoke-test hook (not UI): drive draws without a browser.
+window.__labTest = {
+  press(x, y){ onDown(x, y, 1); },
+  move(x, y){ onMove(x, y, 1); },
+  release(){ onUp(1); },
+  setWorld(plats, gY){ platforms = plats; groundY = gY; keptLines = []; finger = null; snapLock = null; startLock = null; nodeLock = null; lastLiveGreen = null; lastFarNodeKey = null; },
+  liveLine(){ return fingerSegment(); },
+  scroll(dt){ scrollWorld(dt); },
+  isGreen(seg){ return keptLineWillLand(seg); },
+  logLines(){ return logLines.slice(); },
+  nodes(){ return allNodes().map(n => ({ x: n.x, y: n.y })); },
+  greenNodes(){ return [...greenSnapNodes().keys()]; },
+  getSnapFlash(){ return snapFlash; },
+  clear(){ clearWorld(); },
+  newWorld(){ newWorld(); },
+  get keptLines(){ return keptLines; },
+  get platforms(){ return platforms; },
+  get groundY(){ return groundY; }
+};
+</script>
+</body>
+</html>

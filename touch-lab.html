@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Touch Lab — what does your finger report?</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#10222e;
+    font-family:ui-monospace, Menlo, monospace; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  #cv { position:fixed; inset:0; display:block; }
+  #panel { position:fixed; top:0; left:0; right:0; padding:10px 12px calc(8px);
+    background:rgba(6,20,28,.88); color:#cfe8d8; font-size:12.5px; line-height:1.5;
+    white-space:pre-wrap; pointer-events:none; }
+  #panel b { color:#ffd98a; font-size:13.5px; }
+  #verdict { color:#8affc1; font-weight:700; }
+  #steps { position:fixed; left:0; right:0; bottom:calc(8px + env(safe-area-inset-bottom));
+    color:#9fb8a8; font-size:12.5px; text-align:center; padding:0 18px; pointer-events:none;
+    font-family:-apple-system, system-ui, sans-serif; }
+  #clear { position:fixed; right:10px; bottom:calc(38px + env(safe-area-inset-bottom));
+    background:#1d3a2a; color:#cfe8d8; border:1px solid #3f6b4f; border-radius:999px;
+    padding:6px 14px; font-size:12px; font-family:inherit; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="panel">TOUCH LAB — waiting for a touch…</div>
+<button id="clear" type="button">clear</button>
+<div id="steps">1) Lay ONE finger down flat and DIAGONAL, like a ramp in the game.<br>2) Hold it still for 2 seconds. &nbsp;3) Screenshot this whole screen and send it to me.</div>
+
+<script>
+"use strict";
+// TOUCH LAB — shows exactly what this phone/browser reports for a
+// laid-down finger, and what the Mouse Ramp game computes from it.
+// Patch/trajectory math mirrors the game (index.html) so the
+// verdict line is what the game would see.
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const panel = document.getElementById('panel');
+let W = innerWidth, H = innerHeight;
+function fit(){ const d = Math.min(2, devicePixelRatio || 1);
+  cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(d, 0, 0, d, 0, 0); }
+fit();
+addEventListener('resize', () => { W = innerWidth; H = innerHeight; fit(); draw(); });
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const T = { active: false, anchor: null, path: [], x: 0, y: 0, rx: 0, ry: 0, rot: 0, force: 0,
+            pw: null, ph: null, ptype: '', tiltX: null, tiltY: null, log: [] };
+function log(s){ T.log.push(s); if (T.log.length > 5) T.log.shift(); }
+document.getElementById('clear').addEventListener('click', () => {
+  T.path = []; T.log = []; T.anchor = null; draw(); render();
+});
+
+function patchSegment(){
+  const major = Math.max(T.rx, T.ry), minor = Math.min(T.rx, T.ry);
+  const ratio = minor > 0 ? major / minor : 1;
+  if (!(major >= 54 || (major >= 32 && ratio >= 1.35))) return null;
+  const ang = ((T.rx >= T.ry ? T.rot : T.rot + 90) * Math.PI) / 180;
+  const half = clamp(major * 1.1, 85, 190);
+  return { ax: T.x - Math.cos(ang) * half, ay: T.y - Math.sin(ang) * half,
+           bx: T.x + Math.cos(ang) * half, by: T.y + Math.sin(ang) * half, len: half * 2 };
+}
+function trajSegment(){
+  if (!T.anchor || T.path.length < 2) return null;
+  const dx = T.x - T.anchor.x, dy = T.y - T.anchor.y, dist = Math.hypot(dx, dy);
+  if (dist <= 34) return null;
+  const len = clamp(dist, 150, 380);
+  return { ax: T.anchor.x, ay: T.anchor.y, bx: T.anchor.x + dx / dist * len, by: T.anchor.y + dy / dist * len, len };
+}
+function slopeDeg(seg){ const a = Math.abs(Math.atan2(seg.by - seg.ay, seg.bx - seg.ax) * 180 / Math.PI); return Math.min(a, 180 - a); }
+function gameSegment(){
+  const traj = trajSegment(), patch = patchSegment();
+  if (traj) return slopeDeg(traj) <= 71.5 ? { seg: traj, kind: 'PATH' } : { seg: traj, kind: 'PATH (too steep)' };
+  if (patch) return { seg: patch, kind: 'PATCH' };
+  return null;
+}
+
+function render(){
+  if (!T.active && T.path.length === 0){ panel.textContent = 'TOUCH LAB — waiting for a touch…'; return; }
+  const major = Math.max(T.rx, T.ry), minor = Math.min(T.rx, T.ry);
+  const ratio = minor > 0 ? (major / minor).toFixed(2) : '—';
+  const g = gameSegment();
+  let verdict;
+  if (!T.active) verdict = 'finger lifted — values frozen from the last touch';
+  else if (g && g.kind !== 'PATH (too steep)') verdict = 'GAME SEES: RAMP ✓ (' + g.kind + ', slope ' + slopeDeg(g.seg).toFixed(0) + '°, len ' + g.seg.len.toFixed(0) + 'px)';
+  else if (g) verdict = 'GAME SEES: ramp shape but TOO STEEP (' + slopeDeg(g.seg).toFixed(0) + '°) — mouse will not climb';
+  else verdict = 'GAME SEES: FINGERTIP (a wall — mouse bumps and turns)';
+  panel.innerHTML =
+    '<b>TOUCH LAB</b>\n' +
+    'touch point:   x ' + T.x.toFixed(0) + '  y ' + T.y.toFixed(0) + '\n' +
+    'patch:         radiusX ' + T.rx.toFixed(1) + '  radiusY ' + T.ry.toFixed(1) + '  rotationAngle ' + T.rot.toFixed(1) + '°  force ' + (T.force ? T.force.toFixed(2) : 'n/a') + '\n' +
+    'patch shape:   major ' + major.toFixed(1) + '  minor ' + minor.toFixed(1) + '  ratio ' + ratio + '\n' +
+    'pointer event: type ' + (T.ptype || '—') + '  width ' + (T.pw === null ? 'n/a' : T.pw.toFixed(0)) + '  height ' + (T.ph === null ? 'n/a' : T.ph.toFixed(0)) +
+      '  tiltX ' + (T.tiltX === null ? 'n/a' : T.tiltX) + '  tiltY ' + (T.tiltY === null ? 'n/a' : T.tiltY) + '\n' +
+    'path:          start ' + (T.anchor ? '(' + T.anchor.x.toFixed(0) + ',' + T.anchor.y.toFixed(0) + ')' : '—') +
+      '  travelled ' + (T.anchor ? Math.hypot(T.x - T.anchor.x, T.y - T.anchor.y).toFixed(0) : '0') + 'px\n' +
+    '<span id="verdict">' + verdict + '</span>\n' +
+    'events: ' + T.log.join(' → ');
+}
+function draw(){
+  ctx.fillStyle = '#10222e'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
+  for (let gx = 0; gx < W; gx += 50){ ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+  for (let gy = 0; gy < H; gy += 50){ ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+  if (T.path.length > 1){
+    ctx.strokeStyle = 'rgba(200,200,200,.55)'; ctx.lineWidth = 2; ctx.beginPath();
+    T.path.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+  }
+  const patch = patchSegment(), traj = trajSegment();
+  if (patch){ ctx.strokeStyle = 'rgba(255,170,60,.95)'; ctx.lineWidth = 20; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(patch.ax, patch.ay); ctx.lineTo(patch.bx, patch.by); ctx.stroke(); }
+  if (traj){ ctx.strokeStyle = 'rgba(90,255,160,.9)'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(traj.ax, traj.ay); ctx.lineTo(traj.bx, traj.by); ctx.stroke(); }
+  if (T.active || T.path.length){
+    // the reported contact ellipse, drawn with the raw values
+    ctx.strokeStyle = 'rgba(120,190,255,.95)'; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.ellipse(T.x, T.y, Math.max(1, T.rx), Math.max(1, T.ry), T.rot * Math.PI / 180, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffd98a'; ctx.beginPath(); ctx.arc(T.x, T.y, 4, 0, Math.PI * 2); ctx.fill();
+    if (T.anchor){ ctx.strokeStyle = '#ff7a7a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(T.anchor.x - 9, T.anchor.y); ctx.lineTo(T.anchor.x + 9, T.anchor.y);
+      ctx.moveTo(T.anchor.x, T.anchor.y - 9); ctx.lineTo(T.anchor.x, T.anchor.y + 9); ctx.stroke(); }
+  }
+}
+function note(){ render(); draw(); }
+
+cv.addEventListener('pointerdown', e => {
+  T.ptype = e.pointerType; T.pw = e.width; T.ph = e.height;
+  T.tiltX = (e.tiltX !== undefined ? e.tiltX : null); T.tiltY = (e.tiltY !== undefined ? e.tiltY : null);
+  log('pointerdown');
+  if (!T.anchor){ T.anchor = { x: e.clientX, y: e.clientY }; T.path = [{ x: e.clientX, y: e.clientY }]; }
+  T.active = true; T.x = e.clientX; T.y = e.clientY; note();
+});
+cv.addEventListener('pointermove', e => {
+  if (!T.active) return;
+  T.pw = e.width; T.ph = e.height; T.x = e.clientX; T.y = e.clientY; note();
+});
+const end = () => { T.active = false; log('up'); note(); };
+cv.addEventListener('pointerup', end);
+cv.addEventListener('pointercancel', end);
+function fromTouch(e){
+  const tc = e.changedTouches && e.changedTouches[0]; if (!tc) return;
+  if (e.type === 'touchstart'){
+    log('touchstart');
+    T.anchor = { x: tc.clientX, y: tc.clientY }; T.path = [{ x: tc.clientX, y: tc.clientY }];
+  }
+  T.active = e.type !== 'touchend' && e.type !== 'touchcancel';
+  T.x = tc.clientX; T.y = tc.clientY;
+  T.rx = tc.radiusX || 0; T.ry = tc.radiusY || 0; T.rot = tc.rotationAngle || 0; T.force = tc.force || 0;
+  if (T.active) T.path.push({ x: tc.clientX, y: tc.clientY });
+  if (e.cancelable) e.preventDefault();
+  note();
+}
+cv.addEventListener('touchstart', fromTouch, { passive: false });
+cv.addEventListener('touchmove', fromTouch, { passive: false });
+cv.addEventListener('touchend', fromTouch, { passive: true });
+cv.addEventListener('touchcancel', fromTouch, { passive: true });
+render(); draw();
+</script>
+</body>
+</html>

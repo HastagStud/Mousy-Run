@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Mouse Ramp — Training Ground</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#eaf6ff;
+    font-family:-apple-system, system-ui, sans-serif; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  #game { position:fixed; inset:0; display:block; }
+  #logBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px;
+    border:1px solid #c9b896; background:rgba(255,248,234,.88); color:#5a4632;
+    border-radius:999px; padding:7px 14px; font-size:13px; }
+  #logPanel { position:fixed; left:12px; right:12px; top:calc(60px + env(safe-area-inset-top)); bottom:calc(60px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.97); border:2px solid #c9b896; border-radius:16px;
+    padding:12px; display:none; z-index:10; }
+  #logText { width:100%; height:calc(100% - 44px); box-sizing:border-box;
+    font-family:ui-monospace, monospace; font-size:11px; border:1px solid #ddd; border-radius:8px; }
+  #logPanel button { border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
+    border-radius:999px; padding:7px 14px; font-size:13px; margin-right:8px; }
+  #logStatus { font-size:12px; color:#7a6a55; }
+  #helpBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:12px;
+    width:44px; height:44px; border-radius:50%;
+    border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
+    font-size:20px; font-weight:700; padding:0; }
+  #helpModal { position:fixed; inset:0; background:rgba(60,45,20,.45);
+    display:none; z-index:20; overflow-y:auto; }
+  #helpCard { background:#fffdf6; border:2px solid #c9b896; border-radius:16px;
+    max-width:420px; margin:calc(24px + env(safe-area-inset-top)) auto 24px;
+    padding:16px 16px 20px; color:#5a4632; position:relative; }
+  #helpCard h2 { margin:0 0 12px; font-size:18px; text-align:center; }
+  #helpClose { position:absolute; top:8px; right:8px; width:32px; height:32px;
+    border-radius:50%; border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
+    font-size:18px; line-height:1; padding:0; }
+  #helpCard figure { margin:0 0 14px; }
+  #helpCard canvas { width:100%; display:block; border-radius:12px; }
+  #helpCard figcaption { font-size:13px; color:#7a6a55; margin-top:6px; text-align:center; }
+  #helpGotIt { display:block; margin:4px auto 0; border:1px solid #c9b896;
+    background:#fff8ea; color:#5a4632; border-radius:999px; padding:9px 18px; font-size:14px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="helpBtn" type="button" aria-label="What can I do?">?</button>
+
+<button id="logBtn" type="button">LOG</button>
+<div id="logPanel"><textarea id="logText" readonly></textarea><div><button id="logCopy" type="button">Copy log</button><button id="logClose" type="button">Close</button><span id="logStatus"></span></div></div>
+<div id="helpModal"><div id="helpCard">
+  <button id="helpClose" type="button" aria-label="Close">×</button>
+  <h2>What can I do?</h2>
+  <figure><canvas id="cap1" width="360" height="240"></canvas><figcaption>Draw a ramp — when the green line locks into the node, let go and he climbs.</figcaption></figure>
+  <figure><canvas id="cap2" width="360" height="240"></canvas><figcaption>Draw the next ramp while he's climbing — he finishes the first, then takes the second.</figcaption></figure>
+  <figure><canvas id="cap3" width="360" height="240"></canvas><figcaption>Bridge a gap — a flat line between two nodes carries him across.</figcaption></figure>
+  <button id="helpGotIt" type="button">Got it — let me play</button>
+</div></div>
+<script>
+"use strict";
+// ============================================================
+// MOUSE RAMP — TRAINING GROUND (2026-10-23, Larry's spec;
+// repurposed 2026-11-06: no win, no finish, just ledges to climb)
+// Flappy-simple, one-input game on a STATIC screen — no scrolling
+// (the scrolling version is endless.html).
+//
+// The mouse (Larry's footless mouse sprites) ALWAYS runs. He starts
+// at the base running left and right, turning at the walls.
+//  · Finger down  -> he runs TOWARD the finger.
+//  · Fingertip (a small round touch) BLOCKING him -> he bumps it
+//    and turns the other way.
+//  · Finger laid down at an angle (a long, tilted touch patch) ->
+//    it's a RAMP: if he can reach its low edge he runs onto it and
+//    follows it up/down, and steps off onto any ledge its far edge
+//    touches. That's how you bridge the gaps between platforms.
+//  · Finger lifted -> any ramp vanishes; he falls if he was on it,
+//    and keeps running in the direction he was running.
+//
+// Row spacing target is Larry's 1–3 inches; on one static screen
+// the spacing is fitted (≈100–190px) so 4 rows fit — full spacing
+// returns with the scrolling version, where rows are no longer
+// screen-bound. Every row has gaps ≥ ~100px, wide enough for the
+// mouse to pass through.
+//
+// Finger model (honest, same as the pet prototype): a phone gives
+// a touch point + approximate patch size/shape (radiusX/radiusY/
+// rotationAngle where exposed). An elongated or large patch =
+// ramp segment, a small round patch = fingertip blocker. Desktop
+// mouse: press-and-drag draws the ramp between press point and
+// cursor.
+//
+// FIX 2026-10-23 (Larry: "diagonal finger doesn't become a ramp"):
+// three stacked causes — (1) iOS can fire touchstart BEFORE
+// pointerdown, and the old patch handler dropped the patch if the
+// press hadn't registered yet, so a still-held finger stayed a
+// round fingertip forever; the patch is now cached on touchstart
+// and merged into the press whenever it lands. (2) The old ramp
+// cutoff (patch radius >= 48) sat above what a real diagonal
+// finger pad often reports; classification now uses elongation
+// (ratio) as well as size, and the segment is extended to a
+// usable finger length — the sensor only reports the contact
+// core, not the whole finger. (3) The step-up tolerance (26px)
+// was thinner than a finger; it's now ~a finger's thickness.
+//
+// FIX 2 2026-10-23 (still failing on Larry's phone): stop relying
+// on the patch ellipse alone — its orientation data is unreliable
+// across devices. A touch that MOVES now defines the ramp from
+// its own path: when you lay a finger down, the touch point
+// travels from your fingertip toward your hand as the finger
+// flattens, and a deliberate short slide does the same. That
+// trajectory (start point -> current point, extended to ramp
+// length) becomes the ramp whenever it makes a runnable slope;
+// the patch ellipse is the fallback for a perfectly still lay.
+// Gesture: touch at one end of the ramp you want, slide a short
+// way along it, hold.
+//
+// FIX 3 2026-10-23 — MEASURED on Larry's iPhone via Touch Lab:
+// rotationAngle is ALWAYS 0.0° and radiusY can read 0.0; the
+// PointerEvent contact size is a square (97x97). So the patch
+// ellipse carries NO orientation on his device — the old code
+// turned every diagonal finger into a HORIZONTAL bar. Confirmed
+// too: touchstart fires before pointerdown there. And his
+// natural diagonal lay travels at ~58° of slope (250px from
+// (307,521) to (176,309)) — steeper than the old 55° climb
+// limit, so even the correct segment was rejected as a wall.
+// Changes: the touch path now ALWAYS wins over the patch when
+// the touch has travelled, and the climbable limit is 70°
+// (a mouse can scramble up a steep ramp; only near-vertical
+// is a wall).
+// ============================================================
+
+const CFG = {
+  speed: 138,          // px/s, his constant run speed
+  gravity: 1900,       // px/s^2 while falling
+  climb: 54,           // px he can step up/down onto a ramp edge (~finger thickness)
+  transfer: 40,        // px ledge-height tolerance stepping off a ramp
+  faceH: 14,           // drawn platform height — a line ending on the platform's visible face counts as connecting
+  edgeSnap: 48,        // px: a ramp's far end may miss a platform's edge by this much and still count as landing on it
+  snapR: 64,           // B: auto-snap radius — a drawn endpoint within this of his platform / an edge above snaps to it (ported from endless 2026-10-29)
+  maxRampDeg: 88,      // Larry 2026-11-05: so long as the line isn't vertical, it should be good — only a line within 1.5deg of vertical is rejected (was 70)
+  halfW: 27,           // mouse body half-width for support/collision
+  bodyH: 66,           // mouse body height
+  drawW: 104,          // sprite draw width (canvas art is 720x560)
+};
+
+const SPRITES = {
+  idleR: 'mouse-right.png', idleL: 'mouse-left.png',
+  runR: ['mouse-right-run-1.png','mouse-right-run-2.png','mouse-right-run-3.png','mouse-right-run-2.png'],
+  runL: ['mouse-left-run-1.png','mouse-left-run-2.png','mouse-left-run-3.png','mouse-left-run-2.png'],
+};
+const IMG = {};
+Object.values(SPRITES).flat().forEach(src => { const i = new Image(); i.src = src; IMG[src] = i; });
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W = innerWidth, H = innerHeight;
+function fitCanvas(){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ---------- level ----------
+let groundY = 0, platforms = [];
+let clouds = []; // soft rounded clouds (endless parity, Larry 2026-11-06) — screen-space decoration, behind everything
+function buildLevel(){
+  groundY = H - 44;
+  const spacing = Math.max(96, Math.min(288, Math.round((H - 170) / 4.4)));
+  const row = i => groundY - spacing * i;
+  const gap = Math.max(100, W * 0.26);
+  platforms = [
+    // row 1
+    { x1: 0, x2: W * 0.36, y: row(1) },
+    { x1: W * 0.36 + gap, x2: W, y: row(1) },
+    // row 2
+    { x1: W * 0.09, x2: W * 0.45, y: row(2) },
+    { x1: W * 0.45 + gap, x2: W, y: row(2) },
+    // row 3
+    { x1: 0, x2: W * 0.40, y: row(3) },
+    { x1: W * 0.40 + gap, x2: W, y: row(3) },
+    // row 4 — the top row
+    { x1: W * 0.26, x2: W * 0.74, y: row(4) },
+  ];
+  // clouds (endless parity, Larry 2026-11-06): four soft rounded
+  // whites in fixed height bands across the upper sky, drifting
+  // slowly left in screen space — decoration only, never part of
+  // the world (no scroll/follow, no collision).
+  clouds = [0.08, 0.20, 0.33, 0.45].map((fy, i) => ({
+    x: Math.random() * W, y: Math.round(H * fy),
+    s: [1.0, 0.8, 1.15, 0.9][i], v: 10 + (i % 3) * 3, // px/s, slow drift left
+    a: [0.95, 0.85, 0.9, 0.8][i],
+  }));
+}
+buildLevel();
+fitCanvas();
+addEventListener('resize', () => {
+  W = innerWidth; H = innerHeight; buildLevel(); fitCanvas();
+  S.y = Math.min(S.y, groundY); if (S.mode === 'run' && S.surface.type === 'ground') S.y = groundY;
+});
+
+// ---------- state ----------
+const GROUND = { type: 'ground' };
+const S = {
+  x: 70, y: 0, dir: 1, vy: 0,
+  mode: 'run',              // run | fall
+  surface: GROUND,          // GROUND | platform obj | {type:'finger'}
+  runT: 0,
+  finger: null,             // {x,y,rx,ry,rot, dragA, ox,oy}
+  steerDone: false,         // this press has done its steering (he mounted it or bumped it)
+  spentFinger: null,        // the finger whose press is spent — set only when ITS (live) line is disembarked, departed, or crossed; a different finger is never spent by it (a kept line's exit spends no finger)
+  verticalFall: false,      // falling straight down after a ramp crossing (x locked until landing)
+  rampOrigin: null,         // surface he mounted the current ramp from (its line never blocks him)
+  fallExclude: null,        // platform a vertical fall must pass to land strictly below it (the crossed one)
+  fallFrom: null,           // platform he ran off (for the fall-landing gate: a finger line is only landable while falling if it touches the surface he fell from)
+  rampDir: 1,               // committed ramp direction, locked at mount — nothing turns him mid-ramp
+  rampFinger: null,           // finger object he mounted the current ramp with (a new press replacing his line drops him, it never snaps him)
+  keptSeg: null,            // first kept line, if one was drawn
+  keptSeg2: null,           // second kept line, if one was drawn while the first was still up
+  rampSlot: null,           // which kept slot he is climbing (1, 2) or 'live' — so releasing mid-climb doesn't switch him to the other kept line
+  deletePress: false,        // this press tapped a kept line's circled x: it deletes, it doesn't draw
+};
+S.y = groundY;
+
+// ---------- play log (Larry 2026-10-27: monitoring session) ----------
+// Every decision the engine makes, in one place: when a defect
+// happens, tap LOG and paste this into chat — it pins the exact
+// frame, segment, and decision instead of a description. Capped at
+// 400 events (oldest drop off); game coordinates only, no personal
+// data. The LOG button is DOM above the canvas, so tapping it
+// never registers as a game press.
+const LOG = [];
+let LT = 0, lastGreen = null, LOG_STARTED = false;
+const LOG_CAP = 400;
+function platStr(p){
+  if (!p) return 'none';
+  if (p.type === 'ground') return 'ground';
+  if (p.type === 'finger') return 'finger';
+  if (p.type === 'air') return 'air';
+  return '[' + p.x1 + ',' + p.x2 + ']@' + p.y + (p.row ? ' row' + p.row : '');
+}
+function segStr(s){
+  return s ? '(' + Math.round(s.ax) + ',' + Math.round(s.ay) + ')-(' + Math.round(s.bx) + ',' + Math.round(s.by) + ')' : 'none';
+}
+function logEvent(kind, msg){
+  LOG.push(LT.toFixed(2) + 's ' + kind + ' ' + msg);
+  while (LOG.length > LOG_CAP) LOG.shift();
+}
+function showLog(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const panel = document.getElementById('logPanel');
+  const text = document.getElementById('logText');
+  const status = document.getElementById('logStatus');
+  if (!panel || !text) return;
+  text.value = LOG.join('\n') || '(no events yet)';
+  panel.style.display = 'block';
+  if (status) status.textContent = LOG.length + ' events — tap Copy log, then paste it in chat';
+}
+function copyLog(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const status = document.getElementById('logStatus');
+  const txt = LOG.join('\n');
+  const done = () => { if (status) status.textContent = 'Copied — paste it in chat'; };
+  const fallback = () => {
+    const text = document.getElementById('logText');
+    if (text){ text.focus(); text.select(); try { document.execCommand('copy'); done(); return; } catch (e){} }
+    if (status) status.textContent = 'Could not auto-copy — select all in the box and copy it';
+  };
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, fallback);
+  } else fallback();
+}
+(function wireLogUI(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const btn = document.getElementById('logBtn');
+  if (btn && btn.addEventListener) btn.addEventListener('click', showLog);
+  const copy = document.getElementById('logCopy');
+  if (copy && copy.addEventListener) copy.addEventListener('click', copyLog);
+  const close = document.getElementById('logClose');
+  if (close && close.addEventListener) close.addEventListener('click', () => {
+    const panel = document.getElementById('logPanel');
+    if (panel) panel.style.display = 'none';
+  });
+})();
+
+// ---------- capabilities modal ("?" button, Larry 2026-11-06) ----------
+// Opt-in, never forced: the training ground teaches nothing on its
+// own, but "?" opens three pictures of what is possible, drawn in
+// the game's own art (approved mockup): (1) one node-to-node ramp,
+// (2) a two-ramp chain across three rows, with the mouse already
+// ON the first ramp while the second is drawn (Larry 2026-11-10:
+// the rule is you can draw the next line while he is climbing
+// the first — he finishes the first ramp, then takes the second),
+// (3) a flat node-to-node bridge. Each picture shows the green
+// line, its x delete badge, and the ☝ pointing hand (Larry's pick)
+// on the ending node.
+// The modal is DOM only — opening or closing it never touches S.
+let helpOpen = false, capDrawn = 0;
+const helpModal = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('helpModal') : null;
+const helpCanvases = [1, 2, 3].map(i => (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('cap' + i) : null);
+function capSky(c, W, H){
+  const g = c.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#eaf6ff'); g.addColorStop(1, '#fdfdf8');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  // one soft cloud, same shape as the game's
+  c.fillStyle = 'rgba(255,255,255,0.9)';
+  c.beginPath(); c.ellipse(W * 0.72, 34, 36, 13, 0, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(W * 0.72 - 14, 26, 13, 0, Math.PI * 2); c.arc(W * 0.72 + 12, 23, 16, 0, Math.PI * 2); c.fill();
+}
+function capPlat(c, x1, y, x2){
+  // a pill platform, same look as the game's (radius 7, pale-yellow outline, top strip)
+  const r = 7, w = x2 - x1, h = 14;
+  c.beginPath();
+  c.moveTo(x1 + r, y); c.lineTo(x1 + w - r, y); c.quadraticCurveTo(x1 + w, y, x1 + w, y + r);
+  c.lineTo(x1 + w, y + h); c.lineTo(x1, y + h); c.lineTo(x1, y + r); c.quadraticCurveTo(x1, y, x1 + r, y);
+  c.closePath();
+  c.fillStyle = '#8a6f4d'; c.fill();
+  c.strokeStyle = 'rgba(255,224,130,0.55)'; c.lineWidth = 2; c.stroke();
+  c.save(); c.clip();
+  c.fillStyle = '#b08d5f'; c.fillRect(x1 + 2, y, w - 4, 5);
+  c.restore();
+}
+function capNode(c, x, y, green){
+  // a node dot: orange with a thick light-peach outline, or green
+  // with a light-green border once a line has snapped into it
+  c.beginPath(); c.arc(x, y, 17, 0, Math.PI * 2);
+  c.fillStyle = green ? '#a5d6a7' : '#ffc98a'; c.fill();
+  c.beginPath(); c.arc(x, y, 11, 0, Math.PI * 2);
+  c.fillStyle = green ? '#1e7d32' : '#ff7a1a'; c.fill();
+}
+function capLockRing(c, x, y){
+  c.beginPath(); c.arc(x, y, 19, 0, Math.PI * 2);
+  c.strokeStyle = '#3a86ff'; c.lineWidth = 2.5; c.stroke();
+}
+function capSnapRing(c, x, y){
+  c.beginPath(); c.arc(x, y, 20, 0, Math.PI * 2);
+  c.strokeStyle = '#a5d6a7'; c.lineWidth = 2.5; c.stroke();
+}
+function capLine(c, ax, ay, bx, by){
+  c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by);
+  c.strokeStyle = '#1e7d32'; c.lineWidth = 8; c.lineCap = 'round'; c.stroke();
+}
+function capBadge(c, mx, my){
+  // the x delete badge, same as the game's kept lines
+  c.beginPath(); c.arc(mx, my, 13, 0, Math.PI * 2);
+  c.fillStyle = '#fff'; c.fill();
+  c.lineWidth = 2; c.strokeStyle = '#333'; c.stroke();
+  c.fillStyle = '#333'; c.font = 'bold 18px sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('×', mx, my + 1);
+}
+function capHand(c, x, y){
+  // the pointing hand (Larry's pick: the ☝ emoji), fingertip
+  // touching the node from below
+  c.font = '28px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+  c.fillText('☝', x, y + 4);
+}
+function capMouse(c, x, y){
+  // the mouse himself, on the ramp — the game's own run sprite,
+  // feet on the line, upright as in the game (not tilted to the
+  // ramp). Falls back to a simple grey silhouette when the sprite
+  // has not loaded yet (and in the harness, where Image is a
+  // stub), so the picture always shows him on the ramp.
+  const img = IMG['mouse-right-run-2.png'];
+  if (img && img.naturalWidth){
+    const dw = 44, dh = dw * 560 / 720;
+    c.drawImage(img, x - dw * 0.479, y - dh * 0.90, dw, dh);
+  } else {
+    capMouseFallback(c, x, y);
+  }
+}
+function capMouseFallback(c, x, y){
+  // simple grey mouse silhouette, feet on the line at (x, y),
+  // facing right — only when the sprite has not loaded yet
+  c.fillStyle = '#8d8d8d';
+  c.beginPath(); c.ellipse(x, y - 12, 20, 11, 0, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(x + 16, y - 16, 9, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(x + 12, y - 26, 5, 0, Math.PI * 2); c.arc(x + 20, y - 27, 5, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#8d8d8d'; c.lineWidth = 3; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x - 18, y - 8); c.quadraticCurveTo(x - 30, y - 12, x - 34, y - 4); c.stroke();
+  c.fillStyle = '#333';
+  c.beginPath(); c.arc(x + 19, y - 18, 2, 0, Math.PI * 2); c.fill();
+}
+function drawCap1(){
+  const cv = helpCanvases[0]; if (!cv) return;
+  const c = cv.getContext('2d'); if (!c) return;
+  capSky(c, 360, 240);
+  capPlat(c, 20, 183, 170); capPlat(c, 210, 103, 340);
+  capLine(c, 170, 190, 210, 110);
+  capBadge(c, 190, 150);
+  capNode(c, 170, 190, false); capLockRing(c, 170, 190);
+  capNode(c, 210, 110, true); capSnapRing(c, 210, 110);
+  capHand(c, 210, 110);
+  capDrawn++;
+}
+function drawCap2(){
+  const cv = helpCanvases[1]; if (!cv) return;
+  const c = cv.getContext('2d'); if (!c) return;
+  capSky(c, 360, 240);
+  capPlat(c, 20, 200, 140); capPlat(c, 170, 140, 290); capPlat(c, 200, 80, 340);
+  capLine(c, 140, 207, 170, 147);
+  capLine(c, 290, 147, 200, 87);
+  // the mouse is already ON the first ramp, one-third up, with the
+  // flashing green node (170,147) clearly IN FRONT of him — he is
+  // climbing toward it, not on top of it (Larry 2026-11-10) — while
+  // the second ramp is drawn. The rule: you can draw the next line
+  // while he is climbing the first; he finishes the first ramp,
+  // then takes the second. The mouse is drawn LAST, on top of
+  // everything — including the × badge (Larry 2026-11-10).
+  capBadge(c, 155, 177); capBadge(c, 245, 117);
+  capNode(c, 140, 207, false); capLockRing(c, 140, 207);
+  capNode(c, 170, 147, true); capSnapRing(c, 170, 147);
+  capNode(c, 290, 147, false);
+  capNode(c, 200, 87, true); capSnapRing(c, 200, 87);
+  capHand(c, 200, 87);
+  capMouse(c, 150, 187);
+  capDrawn++;
+}
+function drawCap3(){
+  const cv = helpCanvases[2]; if (!cv) return;
+  const c = cv.getContext('2d'); if (!c) return;
+  capSky(c, 360, 240);
+  capPlat(c, 20, 160, 150); capPlat(c, 230, 160, 340);
+  capLine(c, 150, 167, 230, 167);
+  capBadge(c, 190, 167);
+  capNode(c, 150, 167, false); capLockRing(c, 150, 167);
+  capNode(c, 230, 167, true); capSnapRing(c, 230, 167);
+  capHand(c, 230, 167);
+  capDrawn++;
+}
+function drawCaps(){ drawCap1(); drawCap2(); drawCap3(); }
+function openHelp(){
+  helpOpen = true;
+  if (helpModal) helpModal.style.display = 'block';
+  drawCaps();
+}
+function closeHelp(){
+  helpOpen = false;
+  if (helpModal) helpModal.style.display = 'none';
+}
+(function wireHelpUI(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const btn = document.getElementById('helpBtn');
+  if (btn && btn.addEventListener) btn.addEventListener('click', openHelp);
+  const close = document.getElementById('helpClose');
+  if (close && close.addEventListener) close.addEventListener('click', closeHelp);
+  const gotIt = document.getElementById('helpGotIt');
+  if (gotIt && gotIt.addEventListener) gotIt.addEventListener('click', closeHelp);
+  if (helpModal && helpModal.addEventListener) helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) closeHelp();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpOpen) closeHelp();
+  });
+})();
+
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+// ---------- finger geometry ----------
+// Ramp from the touch's own path (see FIX 2): start point ->
+// current point, extended to a usable ramp length.
+function trajSegment(f){
+  if (!f || !f.anchor || !f.dragging) return null;
+  const dx = f.x - f.anchor.x, dy = f.y - f.anchor.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 20) return null;
+  const len = Math.max(dist, 150), ux = dx / dist, uy = dy / dist; // a drawn line runs as long as drawn — no cap
+  return { ax: f.anchor.x, ay: f.anchor.y, bx: f.anchor.x + ux * len, by: f.anchor.y + uy * len, len };
+}
+// Ramp from the contact patch ellipse (still-lay fallback).
+function patchSegment(f){
+  const major = Math.max(f.rx, f.ry), minor = Math.min(f.rx, f.ry);
+  const ratio = minor > 0 ? major / minor : 1;
+  // a ramp is a big contact, or a clearly elongated one; a small
+  // round-ish patch stays a fingertip
+  if (!(major >= 54 || (major >= 32 && ratio >= 1.35))) return null;
+  const ang = ((f.rx >= f.ry ? f.rot : f.rot + 90) * Math.PI) / 180;
+  // the reported patch is only the contact core — extend along the
+  // finger's axis to a usable ramp length
+  const half = clamp(major * 1.1, 85, 190);
+  return {
+    ax: f.x - Math.cos(ang) * half, ay: f.y - Math.sin(ang) * half,
+    bx: f.x + Math.cos(ang) * half, by: f.y + Math.sin(ang) * half,
+    len: half * 2,
+  };
+}
+function liveSegment(){
+  const f = S.finger; if (!f) return null;
+  if (f.dragA){
+    const dx = f.x - f.dragA.x, dy = f.y - f.dragA.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 40) return null;
+    const cap = len, ux = dx / len, uy = dy / len; // a drawn line runs as long as drawn — no cap
+    return { ax: f.dragA.x, ay: f.dragA.y, bx: f.dragA.x + ux * cap, by: f.dragA.y + uy * cap, len: cap };
+  }
+  const traj = trajSegment(f);
+  if (traj) return traj; // the path he actually made IS the finger — it always wins
+  return patchSegment(f);
+}
+// The effective line: a live finger's line if it has one (which
+// supersedes any kept line), else the kept line left behind
+// after lifting — lines stay until used up or replaced.
+// Line, snap, node, and two-line rules ported from endless
+// (Larry 2026-10-29/30: same rules in the static game). The
+// level is static, so locked starts never move — the
+// scroll/follow riding and the world-steepening exemption are
+// vacuous here and omitted — but snap, lock, nodes, green,
+// two kept slots, and per-finger spent are identical.
+function clearKept(seg){
+  // A kept line leaves the screen: the second promotes into
+  // the first slot, so slot 1 is always filled when any line
+  // is kept. Called on disembark, departure, and crossing.
+  if (seg === S.keptSeg){ S.keptSeg = S.keptSeg2; S.keptSeg2 = null; }
+  else if (seg === S.keptSeg2){ S.keptSeg2 = null; }
+}
+let snapLock = null;
+let startLock = null; // the line's start, locked at finger-down to the nearest platform (a fixed point here — no scroll); only the end is drag-controlled
+let nodeLock = null; // the line's start, locked at press to a NODE (a platform end leading to a gap), exactly
+let lastNodeFarKey = null; // snapped far node identity, for once-per-node SNAP logging
+let snapFlash = null; // node the line just snapped into, for the one-time snap flash (Larry 2026-11-02)
+const NODE_R = 28;    // node snap radius (endless parity)
+const NODE_DRAW = 11; // node circle radius on screen
+function snapCrosses(snapped, fromX, dir){
+  if (snapped.by === snapped.ay) return false;
+  for (const p of platforms){
+    const t = (p.y - snapped.ay) / (snapped.by - snapped.ay);
+    if (t <= 0 || t >= 1) continue;
+    const x = snapped.ax + (snapped.bx - snapped.ax) * t;
+    if (x < p.x1 - 2 || x > p.x2 + 2) continue;
+    if (dir > 0 && x <= fromX) continue;
+    if (dir < 0 && x >= fromX) continue;
+    return true;
+  }
+  return false;
+}
+function snapLive(seg){
+  let anchor = null;
+  if (S.surface.type === 'finger') anchor = S.rampOrigin;
+  else anchor = S.surface;
+  if (anchor && anchor.type === 'ground') anchor = { x1: 0, x2: W, y: groundY };
+  if (!anchor || anchor.x1 === undefined) return null;
+  const dA = Math.hypot(seg.ax - S.x, seg.ay - S.y), dB = Math.hypot(seg.bx - S.x, seg.by - S.y);
+  const sE = dA <= dB ? { x: seg.ax, y: seg.ay } : { x: seg.bx, y: seg.by };
+  const fE = dA <= dB ? { x: seg.bx, y: seg.by } : { x: seg.ax, y: seg.ay };
+  const nx = clamp(sE.x, anchor.x1, anchor.x2), ny = anchor.y;
+  if (Math.hypot(sE.x - nx, sE.y - ny) > CFG.snapR) return null;
+  const edges = [];
+  for (const p of platforms){
+    if (p === anchor || p.y >= anchor.y) continue;
+    edges.push({ x: p.x1, y: p.y, d: Math.hypot(fE.x - p.x1, fE.y - p.y) });
+    edges.push({ x: p.x2, y: p.y, d: Math.hypot(fE.x - p.x2, fE.y - p.y) });
+  }
+  edges.sort((a, b) => a.d - b.d);
+  for (const e of edges){
+    if (e.d > CFG.snapR) break;
+    const snapped = (dA <= dB)
+      ? { ax: nx, ay: ny, bx: e.x, by: e.y }
+      : { ax: e.x, ay: e.y, bx: nx, by: ny };
+    snapped.len = Math.hypot(snapped.bx - snapped.ax, snapped.by - snapped.ay);
+    if (!segClimbable(snapped)) continue;
+    if (snapCrosses(snapped, nx, Math.sign(e.x - nx) || 1)) continue;
+    return snapped;
+  }
+  return null;
+}
+// Nodes: a circle only at a platform end leading to a gap, from
+// either direction. Levels tile [0,W] except gaps, so an interior
+// edge always leads to a gap; screen-border ends and the ground
+// (full width) get none. Derived from the platforms each call.
+// Nodes sit CENTERED on the platform's drawn line (Larry
+// 2026-11-01): platforms draw as a 14px rect from p.y, so the
+// dot's center is p.y + faceH/2, not p.y (the top edge).
+function allNodes(){
+  const nodes = [];
+  for (const p of platforms){
+    if (p.x1 > 0) nodes.push({ x: p.x1, y: p.y + CFG.faceH / 2, plat: p, edge: 'left' });
+    if (p.x2 < W) nodes.push({ x: p.x2, y: p.y + CFG.faceH / 2, plat: p, edge: 'right' });
+  }
+  return nodes;
+}
+function nearestNode(x, y, radius, exX, exY){
+  let best = null, bestD = Infinity;
+  for (const n of allNodes()){
+    if (exX !== undefined && Math.hypot(n.x - exX, n.y - exY) < 1) continue;
+    const d = Math.hypot(x - n.x, y - n.y);
+    if (d <= radius && d < bestD){ bestD = d; best = n; }
+  }
+  return best;
+}
+// Fully node-connected: BOTH ends sit on (distinct) nodes. A
+// node-drawn line whose far end floats short of a node is NOT
+// fully connected, so it must not show green (endless 2026-10-29).
+function segNodeConnected(seg){
+  const a = nearestNode(seg.ax, seg.ay, NODE_R);
+  const b = nearestNode(seg.bx, seg.by, NODE_R);
+  if (!a || !b) return false;
+  return Math.hypot(a.x - b.x, a.y - b.y) >= 1;
+}
+
+// Far-end node snap for ANY line (Larry 2026-11-02): if the
+// finger ends within NODE_R of a node (other than the line's
+// start), the far end snaps to that node — the node wins over
+// a B edge snap. Fires the SNAP log + snap flash once per
+// node (keyed by node identity, shared with the nodeLock
+// branch, which now goes through here too). Returns the seg
+// with its far end replaced, or the seg unchanged.
+// B edge on a node-edge (Larry 2026-11-02): B and node snap
+// to TWO points for the SAME edge — B to the top (x, p.y),
+// the node to the center (x, p.y+7). A B-snapped far end
+// sitting on an edge that HAS a node is moved onto the node
+// itself, so it counts as landing on the node (his kept
+// lines ended on edges 7px from their nodes, so no node
+// turned green). Same once-per-node log + flash as a
+// finger-node snap; skipped when it would degenerate the
+// line (the edge is the start's own edge).
+function farNodeSnap(seg){
+  if (!seg || !S.finger) return seg;
+  let n = nearestNode(S.finger.x, S.finger.y, NODE_R, seg.ax, seg.ay);
+  if (!n){
+    for (const p of platforms){
+      if (seg.by === p.y && (seg.bx === p.x1 || seg.bx === p.x2)){
+        const isNodeEdge = (seg.bx === p.x1 && p.x1 > 0) || (seg.bx === p.x2 && p.x2 < W);
+        const ny = seg.by + CFG.faceH / 2;
+        if (isNodeEdge && Math.hypot(seg.bx - seg.ax, ny - seg.ay) >= 1){
+          n = { x: seg.bx, y: ny, plat: p, edge: seg.bx === p.x1 ? 'left' : 'right' };
+        }
+        break;
+      }
+    }
+  }
+  if (!n){ lastNodeFarKey = null; return seg; }
+  const out = { ...seg, bx: n.x, by: n.y };
+  if (out.len !== undefined) out.len = Math.hypot(out.bx - out.ax, out.by - out.ay);
+  // A snap must not promise what the line can't do (Larry
+  // 2026-11-05: a line snapped to a node but stayed amber
+  // because it was too steep to climb) — like the B snap, a
+  // node snap only fires when the snapped line is climbable.
+  // An unclimbable line keeps its raw far end (no SNAP log,
+  // no flash), so a snap now implies a climbable line.
+  if (!segClimbable(out)) return seg;
+  const key = (n.plat.x1 + ',' + n.plat.x2) + '-' + n.edge;
+  if (key !== lastNodeFarKey){
+    logEvent('SNAP', 'far=(' + Math.round(n.x) + ',' + Math.round(n.y) + ')');
+    snapFlash = { plat: n.plat, edge: n.edge, x: n.x, y: n.y, t0: performance.now() };
+  }
+  lastNodeFarKey = key;
+  return out;
+}
+
+// Nodes a green line snaps into (Larry 2026-11-02): the far
+// node of a line that is green AND snapped into that node.
+// Live line + kept lines both count. The far end must
+// COINCIDE with a node (snapped, ~0px) — not merely sit near
+// one: a raw far end 7px from a node (Larry 2026-11-02: his
+// ground-start line ended 7px from a node but was not
+// snapped) must NOT turn the node green. Excludes the start
+// node. Any green line qualifies, whether or not it started
+// on a node. The color used is the line's DISPLAYED color
+// (kept green when kept and not climbing, live green
+// otherwise).
+function greenSnapNodes(){
+  const found = new Map();
+  const consider = (seg) => {
+    if (!seg) return;
+    const isKept = seg === S.keptSeg || seg === S.keptSeg2;
+    const climbing = S.surface && S.surface.type === 'finger';
+    const isGreen = (isKept && !climbing) ? keptLineWillLand(seg) : lineWillLand(seg);
+    if (!isGreen) return;
+    const n = nearestNode(seg.bx, seg.by, 2, seg.ax, seg.ay);
+    if (n) found.set(n.x + ',' + n.y, n);
+  };
+  const live = fingerSegment();
+  if (live) consider(live);
+  if (S.keptSeg) consider(S.keptSeg);
+  if (S.keptSeg2) consider(S.keptSeg2);
+  return found;
+}
+
+function fingerSegment(){
+  // Only that finger is spent; another finger held across the
+  // disembark keeps its line (Larry 2026-10-28: continue onto the
+  // next ramp). A spent finger's line is gone for that press,
+  // even if the finger is still down — a new line needs a new press.
+  if (S.finger && S.finger === S.spentFinger) return null;
+  const live = liveSegment();
+  if (live){
+    // Two-line rule (Larry 2026-10-28, ported 2026-10-30): at
+    // most two lines on screen. A still point never disturbs a
+    // kept line; point+drag ADDS a line (it no longer replaces
+    // the kept one) — and when two kept lines are already up, a
+    // new drag draws nothing (the finger still steers, but no
+    // third line appears).
+    const fp = S.finger;
+    const fromMovement = !!fp && (!!fp.dragA || !!trajSegment(fp));
+    if (S.deletePress && fromMovement) S.deletePress = false; // the x-tap became a drag: a new line
+    else if (S.deletePress) return null; // x-tap press: no line while it deletes
+    if (S.keptSeg && !fromMovement) return (S.surface.type === 'finger' && S.rampSlot === 2 && S.keptSeg2) ? S.keptSeg2 : S.keptSeg;
+    // B: a snapped line locks for this press once he is on it or
+    // falling toward it; a raw climbed line keeps morphing —
+    // but if the drag moves it into a snap target, it snaps
+    // mid-climb and then locks, so it can't jump again
+    if ((S.surface.type === 'finger' || S.surface.type === 'air') && snapLock && snapLock.finger === S.finger) return snapLock.seg;
+    // Two-line cap: two kept lines up + a new drag = no third line.
+    // Climbing a live line (rampFinger) is not a new line, so it is
+    // never blocked; a blocked drag returns the first kept line, so
+    // the press neither draws nor disturbs his climb.
+    if (S.keptSeg && S.keptSeg2 && fromMovement && !(S.surface.type === 'finger' && S.finger === S.rampFinger)) return S.keptSeg;
+    // Nodes: a press on a node locks the start to it exactly
+    // (no guard — pressing on a node is choosing it); the far
+    // end snaps to a node it ends in. Both endpoints in nodes
+    // always snap — no green filter; the color judges
+    // separately. Takes precedence over startLock/B snap, but not
+    // over the two-line cap above or a spent finger.
+    if (nodeLock && nodeLock.finger === S.finger){
+      const out = farNodeSnap({ ax: nodeLock.sx, ay: nodeLock.sy, bx: S.finger.x, by: S.finger.y });
+      out.len = Math.hypot(out.bx - out.ax, out.by - out.ay);
+      out.node = true; // provenance: drawn from a node — its green requires full node connection
+      return out;
+    }
+    // Start lock: finger down locks the start. Once the press
+    // point is within snapR of a platform, the start is that
+    // platform point and never disengages; only the end is
+    // drag-controlled (with B's far-edge snap assisting).
+    if (!startLock || startLock.finger !== S.finger) {
+      const fp0 = S.finger;
+      const pp = fp0 && (fp0.dragA || fp0.anchor);
+      if (pp && fromMovement) {
+        // The start anchors to the NEAREST platform within snapR —
+        // not just the one he stands on. His own platform is tried
+        // first, so a tie (or a press on it) still locks to it.
+        const cands = [];
+        if (S.surface.type === 'ground') cands.push({ x1: 0, x2: W, y: groundY });
+        else if (S.surface.x1 !== undefined) cands.push(S.surface);
+        for (const p of platforms) if (p !== S.surface) cands.push(p);
+        if (S.surface.type !== 'ground') cands.push({ x1: 0, x2: W, y: groundY });
+        let anch = null, bestD = Infinity, bestX = 0;
+        for (const p of cands){
+          const nx = clamp(pp.x, p.x1, p.x2);
+          const d = Math.hypot(pp.x - nx, pp.y - p.y);
+          if (d < bestD){ bestD = d; anch = p; bestX = nx; }
+        }
+        if (anch && bestD <= CFG.snapR) {
+          // The lock must not break the front-line rule. A line
+          // that never crosses the lock platform's height always
+          // locks. A line that DOES cross it mid-span locks only
+          // when the press is already over the platform AND the
+          // foot falls over a gap; it is blocked when the press
+          // sits past the edge or the foot is ON the platform.
+          let blocked = false;
+          if (live.ay !== live.by) {
+            const tt = (anch.y - live.ay) / (live.by - live.ay);
+            if (tt > 0 && tt < 1) {
+              const footX = live.ax + (live.bx - live.ax) * tt;
+              if (pp.x < anch.x1 || pp.x > anch.x2 || (footX >= anch.x1 && footX <= anch.x2)) blocked = true;
+            }
+          }
+          if (!blocked) {
+            startLock = { finger: S.finger, sx: bestX, sy: anch.y };
+            logEvent('LOCK', 'start=(' + bestX + ',' + Math.round(anch.y) + ')');
+          }
+        }
+      }
+    }
+    if (startLock && startLock.finger === S.finger) {
+      const stx = startLock.sx, sty = startLock.sy;
+      // far end = the live segment's farther endpoint (endless
+      // parity, 2026-11-06 — the drawn line's real far end, not
+      // the finger position)
+      const dAx = Math.hypot(live.ax - stx, live.ay - sty), dBx = Math.hypot(live.bx - stx, live.by - sty);
+      let far = dAx >= dBx ? { x: live.ax, y: live.ay } : { x: live.bx, y: live.by };
+      const cands = [];
+      for (const p of platforms) {
+        if (p.y >= sty) continue;
+        cands.push({ x: p.x1, y: p.y, d: Math.hypot(far.x - p.x1, far.y - p.y) });
+        cands.push({ x: p.x2, y: p.y, d: Math.hypot(far.x - p.x2, far.y - p.y) });
+      }
+      cands.sort((a, b) => a.d - b.d);
+      for (const e of cands) {
+        if (e.d > CFG.snapR) break;
+        const cand = { ax: stx, ay: sty, bx: e.x, by: e.y };
+        cand.len = Math.hypot(cand.bx - cand.ax, cand.by - cand.ay);
+        if (!segClimbable(cand)) continue;
+        if (snapCrosses(cand, stx, Math.sign(e.x - stx) || 1)) continue;
+        far = { x: e.x, y: e.y };
+        break;
+      }
+      // Far-node snap wins over the B edge above (Larry
+      // 2026-11-02: any line's far end snaps into a node).
+      const out = farNodeSnap({ ax: stx, ay: sty, bx: far.x, by: far.y });
+      out.len = Math.hypot(out.bx - out.ax, out.by - out.ay);
+      return out;
+    }
+    // Mid-climb snap retry: a mounted raw line re-tries snap on
+    // every drag; when it snaps, it locks.
+    if (S.surface.type === 'finger' && S.finger === S.rampFinger) {
+      const snapped = farNodeSnap(snapLive(live));
+      if (snapped) {
+        logEvent('SNAP', 'raw=' + segStr(live) + ' snapped=' + segStr(snapped));
+        snapLock = { finger: S.finger, seg: snapped };
+        return snapped;
+      }
+      return farNodeSnap(live);
+    }
+    const snapped = farNodeSnap(snapLive(live));
+    if (snapped){
+      if (!snapLock || snapLock.seg.ax !== snapped.ax || snapLock.seg.ay !== snapped.ay || snapLock.seg.bx !== snapped.bx || snapLock.seg.by !== snapped.by) logEvent('SNAP', 'raw=' + segStr(live) + ' snapped=' + segStr(snapped));
+      snapLock = { finger: S.finger, seg: snapped };
+      return snapped;
+    }
+    snapLock = null; return farNodeSnap(live);
+  }
+  // Climbing a kept line: return the one he is on, not just the
+  // first — releasing mid-climb (which keeps his line in a slot)
+  // must not switch him to the other kept line.
+  if (S.surface.type === 'finger' && S.rampSlot === 2 && S.keptSeg2) return S.keptSeg2;
+  return S.keptSeg;
+}
+function fingerBlocker(){
+  const f = S.finger; if (!f || f === S.spentFinger || fingerSegment()) return null;
+  if (f.dragA) return { x: f.dragA.x, y: f.dragA.y, r: 22 };
+  return { x: f.x, y: f.y, r: clamp(Math.max(f.rx, f.ry), 18, 40) };
+}
+function segYAt(seg, x){
+  const t = seg.len === 0 ? 0 : clamp((x - seg.ax) / (seg.bx - seg.ax || 1), 0, 1);
+  return seg.ay + (seg.by - seg.ay) * t;
+}
+function segClimbable(seg){
+  const a = Math.abs(Math.atan2(seg.by - seg.ay, seg.bx - seg.ax) * 180 / Math.PI);
+  // +1.5° of slack: touch angles are approximate, and a finger laid
+  // at exactly the limit should count, not fail on rounding
+  return Math.min(a, 180 - a) <= CFG.maxRampDeg + 1.5;
+}
+function segSpan(seg){ return [Math.min(seg.ax, seg.bx), Math.max(seg.ax, seg.bx)]; }
+// Does this segment connect to a platform/ground surface? Connected
+// means the mouse can STEP onto it from that surface: the segment's
+// y-range over the overlap of the segment's span and the surface's
+// span must meet [top-climb, top+climb] — a step up or down, the
+// same tolerance mounting itself uses. Exact touch proved too strict
+// for finger drawing (Larry 2026-10-26: green never showed): a press
+// lands on the mouse's body, up to a finger's width above the
+// platform line, not pixel-perfect on it. What still counts as NOT
+// connected: no horizontal overlap with his platform at all (a line
+// on another platform, or past his platform's edge), or farther than
+// a step away vertically. A line that isn't connected to the
+// platform the mouse is on is not usable: he falls instead of
+// climbing it.
+function segTouchesSurface(seg, surf){
+  if (!seg || !surf) return false;
+  let x1, x2, top;
+  if (surf.type === 'ground'){ x1 = 0; x2 = W; top = groundY; }
+  else if (surf.x1 !== undefined){ x1 = surf.x1; x2 = surf.x2; top = surf.y; }
+  else return false; // finger/air surfaces are not platforms to touch
+  const [lo, hi] = segSpan(seg);
+  const a = Math.max(lo, x1), b = Math.min(hi, x2);
+  if (a > b) return false;
+  const yA = segYAt(seg, a), yB = segYAt(seg, b);
+  return Math.min(yA, yB) <= top + CFG.climb && Math.max(yA, yB) >= top - CFG.climb;
+}
+
+// foot of a line on a surface: where the segment meets the surface's
+// height (Larry 2026-10-26: a line drawn in front mounts only at its
+// foot, from the side where it makes the largest angle with the
+// surface, and only if it touches a surface). Returns the foot point
+// and the far (climb-target) end's x: the crossing point when the
+// segment passes through the surface height, the nearer endpoint
+// when it only comes within step distance, and the end he meets
+// first when it runs flat at (or near) that height.
+// foot of a line on a surface: where the segment meets the surface's
+// height (Larry 2026-10-26: a line drawn in front mounts only at its
+// foot, from the side where it makes the largest angle with the
+// surface, and only if it touches a surface). Returns the foot point
+// and the far (climb-target) end's x: the crossing point when the
+// segment passes through the surface height, and the end nearest to
+// the mouse (mx) when it does not cross — a flat bridge (or a line
+// just above/below the surface) is stepped onto at the end nearest
+// to him, and he walks toward the far end. The old height/direction
+// pick chose the end nearer the surface height (or the left end for
+// a flat line running right), which could be the FAR end when he
+// stood past the near one — so a bridge drawn back from the platform
+// edge he just landed on was unmountable, and he ran past it off the
+// edge instead of turning toward it (Larry 2026-11-09 log, ported
+// from endless).
+function segFoot(seg, surfY, dir, mx){
+  let fx, fy, farX;
+  if (seg.by !== seg.ay){
+    const t = (surfY - seg.ay) / (seg.by - seg.ay);
+    if (t >= 0 && t <= 1){ fx = seg.ax + (seg.bx - seg.ax) * t; fy = surfY; farX = seg.ay < seg.by ? seg.ax : seg.bx; }
+    else if (mx === undefined ? Math.abs(seg.ay - surfY) <= Math.abs(seg.by - surfY) : Math.abs(seg.ax - mx) <= Math.abs(seg.bx - mx)){ fx = seg.ax; fy = seg.ay; farX = seg.bx; }
+    else { fx = seg.bx; fy = seg.by; farX = seg.ax; }
+  } else {
+    // A flat line is a bridge: the foot is the end nearest to him.
+    // (mx defaults to the old direction pick when no position is
+    // given, so callers that do not know it keep the old behaviour.)
+    if (mx === undefined) mx = dir > 0 ? -Infinity : Infinity;
+    if (Math.abs(seg.ax - mx) <= Math.abs(seg.bx - mx)){ fx = seg.ax; farX = seg.bx; }
+    else { fx = seg.bx; farX = seg.ax; }
+    fy = seg.ay;
+  }
+  return { x: fx, y: fy, farX };
+}
+
+// First platform this ramp segment runs THROUGH ahead of fromX in
+// direction dir — i.e. the segment crosses the platform's top line
+// at an x inside the platform's span. The platform he mounted from
+// (rampOrigin) is excluded: a straight segment meets its line once,
+// at the departure. Ground is not a platform here (floor logic
+// already handles it). Returns {x, y, plat} or null.
+// GREEN PREDICTION — is this line FULLY CONNECTED? Green means
+// the line can be mounted AND its far end actually TOUCHES a
+// platform: within the platform's span, on its top edge or its
+// face. It deliberately does NOT light for the engine's forgiving
+// landings — a snap gap short of an edge, a drop from high above,
+// or a crossing drop onto a platform below — because in all of
+// those the line visibly ISN'T connected, even though he would
+// still land. Amber therefore no longer means "will fall": it
+// means "not fully connected" (snap/drop lines still land; only
+// lines that miss everything fall).
+// Travel direction: his locked ramp direction on a ramp, else the
+// mount rule (toward the far end from the point nearest him).
+// shared far-edge landing check (Larry 2026-10-27: landing lines
+// are green): the exit's plat/drop search, used by BOTH the engine's
+// far-edge exit and the green prediction, so the indicator can never
+// disagree with what the exit actually does. Returns {plat} (steps
+// on: exact touch, edge snap, or step-up) or {drop} (drops vertically
+// onto a platform below), or null (falls off the far edge).
+function exitLanding(endX, endY){
+  let plat = null, bestH = Infinity, bestV = Infinity;
+  for (const p of platforms){
+    // step-on from at/above the top OR on the platform's visible
+    // face (face counts as connecting). Only a line ending BELOW
+    // the face still falls instead of landing.
+    const vGap = p.y - endY;
+    if (vGap < -CFG.faceH || vGap > CFG.transfer) continue;
+    const hGap = endX < p.x1 ? p.x1 - endX : (endX > p.x2 ? endX - p.x2 : 0);
+    if (hGap > CFG.edgeSnap) continue;
+    const av = Math.abs(vGap);
+    if (hGap < bestH || (hGap === bestH && av < bestV)){ plat = p; bestH = hGap; bestV = av; }
+  }
+  if (plat) return { plat };
+  // drop: far end over a platform but too far above it to step on —
+  // drop vertically onto the nearest platform below instead of
+  // falling with horizontal drift and missing it
+  let drop = null;
+  for (const p of platforms){
+    if (p.y <= endY) continue;
+    const hGap = endX < p.x1 ? p.x1 - endX : (endX > p.x2 ? endX - p.x2 : 0);
+    if (hGap > CFG.edgeSnap) continue;
+    if (!drop || p.y < drop.y) drop = p;
+  }
+  if (drop) return { drop };
+  return null;
+}
+
+function lineWillLand(seg){
+  if (!seg || !segClimbable(seg)) return false;
+  // Node lines must be fully node-connected to be green
+  // (endless 2026-10-29): a node-drawn line whose far end
+  // floats short of a node is amber, even if exit tolerances
+  // would still land it. Amber is a warning, not a block.
+  if (seg.node && !segNodeConnected(seg)) return false;
+  // A GREEN LINE MUST ALSO BE MOUNTABLE. The old prediction asked
+  // "if he runs this line, does he land?" but never asked "can he
+  // get on it?" — so a line floating too high, past his ledge's
+  // edge, or behind him on a kept line (no steering once the finger
+  // lifts) showed green while he ran off his ledge and fell without
+  // ever touching it. The engine mounts only while running, only
+  // within climb px vertically and halfW+8 px horizontally of his
+  // path, and only before his ledge runs out under him. A falling
+  // mouse mounts nothing at all.
+  if (S.mode !== 'run') return false;
+  // fully connected at the START end too: a line that doesn't touch
+  // the platform he's on can't be mounted, so it can't be green
+  if (S.surface && S.surface.type !== 'finger' && !segTouchesSurface(seg, S.surface)) return false;
+  if (!S.surface || S.surface.type !== 'finger'){
+    const [lo, hi] = segSpan(seg);
+    const grace = CFG.halfW + 8;
+    let x1, x2;
+    if (S.surface && S.surface.type === 'ground'){ x1 = -Infinity; x2 = Infinity; }
+    else { x1 = S.surface ? S.surface.x1 : -Infinity; x2 = S.surface ? S.surface.x2 : Infinity; }
+    // mountable x-interval: a segment point he can reach while still
+    // supported (he falls once x-10 >= x2 running right, x+10 <= x1
+    // running left), within mount grace. A live line steers him
+    // toward it, so either approach counts; a kept line (or a live
+    // line after a bump) leaves him running his current direction.
+    let a, b;
+    if (S.finger && !S.steerDone){
+      a = Math.max(lo, x1 - 10 - grace);
+      b = Math.min(hi, x2 + 10 + grace);
+    } else if (S.dir > 0){
+      a = Math.max(lo, S.x - grace);
+      b = Math.min(hi, x2 + 10 + grace);
+    } else {
+      a = Math.max(lo, x1 - 10 - grace);
+      b = Math.min(hi, S.x + grace);
+    }
+    if (a > b) return false;
+    // the segment is straight, so its height over [a,b] spans its
+    // endpoint heights: some reachable point must be within climb
+    const yA = segYAt(seg, a), yB = segYAt(seg, b);
+    if (Math.max(yA, yB) < S.y - CFG.climb || Math.min(yA, yB) > S.y + CFG.climb) return false;
+    // foot rule: he mounts at the foot, so the foot itself must be
+    // reachable while supported — a line whose middle is reachable
+    // but whose foot lies past his ledge's edge can't be mounted.
+    // With steering he can turn back to a foot on his ledge; without
+    // it (kept line) the foot must lie within the mountable interval
+    // [a,b] — which already reaches one mount-grace behind him, so a
+    // foot just behind him (a bridge back from the edge he just
+    // landed on) counts, and he turns toward it (Larry 2026-11-09,
+    // ported from endless). The old rule demanded the foot lie ahead
+    // in his running direction, which made a bridge behind him amber
+    // even though he mounts it.
+    const gSurfY = !S.surface ? S.y : (S.surface.type === 'ground' ? groundY : S.surface.y);
+    const gFoot = segFoot(seg, gSurfY, S.dir, S.x);
+    if (gFoot.x < a || gFoot.x > b) return false;
+  }
+  let dir;
+  if (S.surface && S.surface.type === 'finger') dir = S.rampDir;
+  else {
+    const [lo, hi] = segSpan(seg);
+    const mx = clamp(S.x, lo, hi);
+    const nearA = Math.abs(mx - seg.ax) <= Math.abs(mx - seg.bx);
+    const nearEnd = nearA ? seg.ax : seg.bx, farEnd = nearA ? seg.bx : seg.ax;
+    dir = Math.abs(farEnd - nearEnd) > 12 ? Math.sign(farEnd - nearEnd) : S.dir;
+  }
+  // crossing first: the engine checks it before every ramp step
+  const exclude = (S.surface && S.surface.type === 'finger') ? S.rampOrigin : S.surface;
+  let block = null;
+  // same face-destination exclusion as the engine's rampBlocker
+  const [plo, phi] = segSpan(seg);
+  const pfarX = dir > 0 ? phi : plo;
+  const pfarY = segYAt(seg, pfarX);
+  if (seg.by !== seg.ay){
+    for (const p of platforms){
+      if (p === exclude) continue;
+      const pfarGap = pfarX < p.x1 ? p.x1 - pfarX : (pfarX > p.x2 ? pfarX - p.x2 : 0);
+      if (pfarGap <= CFG.edgeSnap && pfarY >= p.y && pfarY <= p.y + CFG.faceH) continue;
+      const t = (p.y - seg.ay) / (seg.by - seg.ay);
+      if (t <= 0 || t >= 1) continue;
+      const x = seg.ax + (seg.bx - seg.ax) * t;
+      if (x < p.x1 - 2 || x > p.x2 + 2) continue;
+      if (dir > 0 && x <= S.x) continue;
+      if (dir < 0 && x >= S.x) continue;
+      const d = Math.abs(x - S.x);
+      if (!block || d < block.d) block = { x, y: p.y, plat: p, d };
+    }
+  }
+  // a line that runs through a platform never reaches its far end,
+  // so it can't be fully connected — amber, even if the crossing
+  // drop would land him on a platform below
+  if (block) return false;
+  // far end must LAND him somewhere NEW (Larry 2026-10-27: a
+  // drop back onto the platform he started from is not progress —
+  // it showed green and dropped him where he began, which reads
+  // as falling off): the exit's own landing check, but a landing
+  // on his origin platform does not count. Only a far end with
+  // no new landing (open air, below a face, or back to origin)
+  // stays amber. The exit itself still drops him back safely;
+  // only the color's promise changes.
+  const [lo, hi] = segSpan(seg);
+  const endX = dir > 0 ? hi : lo;
+  const endY = segYAt(seg, endX);
+  const landing = exitLanding(endX, endY);
+  if (!landing) return false;
+  const origin = (S.surface && S.surface.type === 'finger') ? S.rampOrigin : S.surface;
+  const dest = landing.plat || landing.drop;
+  if (dest === origin) return false;
+  // Green means onward (endless 2026-10-29): a DROP must land
+  // strictly ABOVE the origin — a same-row or lower drop is
+  // amber, even though the exit itself still lands safely.
+  // Step-ons count wherever they land (unchanged).
+  const originY = !origin ? S.y : (origin.type === 'ground' ? groundY : origin.y);
+  if (landing.drop && dest.y >= originY) return false;
+  // Guaranteed landing (Larry 2026-10-30): a step-on is only
+  // green if the EXIT puts him ON the platform — not beside it.
+  // The engine steps him 4px past the far end in his running
+  // direction (clamped to 6px outside the platform), so a far end
+  // a hair inside an edge, run toward that edge, exits him off
+  // the ledge (held up only by the 10px grace) and he falls at
+  // once — the log's (172,331)-(112,183) line, exiting at 108
+  // beside a ledge starting at 111.8. A drop always lands him
+  // clamped inside its platform, so drops need no extra check.
+  if (landing.plat){
+    const exitX = clamp(endX + dir * 4, landing.plat.x1 - 6, landing.plat.x2 + 6);
+    if (exitX < landing.plat.x1 || exitX > landing.plat.x2) return false;
+  }
+  return true;
+}
+// KEPT-LINE GREEN (Larry 2026-10-28, mirrors endless): a kept
+// line stays green if the line itself is good — climbable,
+// touching some platform or the ground (its embark anchor),
+// running through no platform, and its far end landing somewhere
+// NEW from that anchor — regardless of where he currently
+// stands. Live and climbing lines keep lineWillLand.
+function keptLineWillLand(seg){
+  if (!seg || !segClimbable(seg)) return false;
+  // Node lines must be fully node-connected to be green
+  // (endless 2026-10-29) — same amber warning as live lines.
+  if (seg.node && !segNodeConnected(seg)) return false;
+  const candidates = [];
+  for (const p of platforms) if (segTouchesSurface(seg, p)) candidates.push(p);
+  if (segTouchesSurface(seg, GROUND)) candidates.push(GROUND);
+  for (const p of candidates){
+    const pY = p.type === 'ground' ? groundY : p.y;
+    const gap = (x) => p.type === 'ground' ? 0 : (x < p.x1 ? p.x1 - x : (x > p.x2 ? x - p.x2 : 0));
+    const gapA = gap(seg.ax), gapB = gap(seg.bx);
+    let embark, far;
+    if (gapA < gapB || (gapA === gapB && Math.abs(seg.ay - pY) <= Math.abs(seg.by - pY))){ embark = { x: seg.ax, y: seg.ay }; far = { x: seg.bx, y: seg.by }; }
+    else { embark = { x: seg.bx, y: seg.by }; far = { x: seg.ax, y: seg.ay }; }
+    const dir = Math.abs(far.x - embark.x) > 12 ? Math.sign(far.x - embark.x) : 0;
+    if (!dir) continue;
+    const [lo, hi] = segSpan(seg);
+    const farX = dir > 0 ? hi : lo, farY = segYAt(seg, farX);
+    let blocked = false;
+    if (seg.by !== seg.ay){
+      for (const q of platforms){
+        if (q === p) continue;
+        const fGap = farX < q.x1 ? q.x1 - farX : (farX > q.x2 ? farX - q.x2 : 0);
+        if (fGap <= CFG.edgeSnap && farY >= q.y && farY <= q.y + CFG.faceH) continue;
+        const t = (q.y - seg.ay) / (seg.by - seg.ay);
+        if (t <= 0 || t >= 1) continue;
+        const x = seg.ax + (seg.bx - seg.ax) * t;
+        if (x < q.x1 - 2 || x > q.x2 + 2) continue;
+        blocked = true; break;
+      }
+    }
+    if (blocked) continue;
+    const landing = exitLanding(farX, farY);
+    if (!landing) continue;
+    const dest = landing.plat || landing.drop;
+    if (dest === p) continue;
+    // Green means onward (endless 2026-10-29): a DROP must land
+    // strictly above the embark anchor — same-row or lower
+    // drops are amber (the exit itself still lands safely).
+    if (landing.drop && dest.y >= pY) continue;
+    // Guaranteed landing (Larry 2026-10-30): same exit-on-the-
+    // platform check as lineWillLand, from this anchor's
+    // climbing direction.
+    if (landing.plat){
+      const exitX = clamp(farX + dir * 4, landing.plat.x1 - 6, landing.plat.x2 + 6);
+      if (exitX < landing.plat.x1 || exitX > landing.plat.x2) continue;
+    }
+    return true;
+  }
+  return false;
+}
+function rampBlocker(seg, fromX, dir){
+  if (!seg || seg.by === seg.ay) return null;
+  let best = null;
+  // face destination, computed once: if the far end in travel
+  // direction lands on a platform's face, that platform is the
+  // destination, not something the line runs through
+  const [rlo, rhi] = segSpan(seg);
+  const rfarX = dir > 0 ? rhi : rlo;
+  const rfarY = segYAt(seg, rfarX);
+  for (const p of platforms){
+    if (p === S.rampOrigin) continue;
+    const rfarGap = rfarX < p.x1 ? p.x1 - rfarX : (rfarX > p.x2 ? rfarX - p.x2 : 0);
+    if (rfarGap <= CFG.edgeSnap && rfarY >= p.y && rfarY <= p.y + CFG.faceH) continue;
+    const t = (p.y - seg.ay) / (seg.by - seg.ay);
+    if (t <= 0 || t >= 1) continue;
+    const x = seg.ax + (seg.bx - seg.ax) * t;
+    if (x < p.x1 - 2 || x > p.x2 + 2) continue;
+    if (dir > 0 && x <= fromX) continue;
+    if (dir < 0 && x >= fromX) continue;
+    const d = Math.abs(x - fromX);
+    if (!best || d < best.d) best = { x, y: p.y, plat: p, d };
+  }
+  return best;
+}
+
+// Where he'd aim for: fingertip centre, or the point ON the ramp
+// nearest his feet (usually its low crossing point, not an end).
+function fingerTarget(){
+  // First line first (Larry 2026-11-03): while a kept first line
+  // is pending and he is running, steer toward it, not toward the
+  // live line being drawn — otherwise steering tethers him to the
+  // second line's foot while mounting forbids it, and he
+  // oscillates there instead of reaching the first.
+  const seg = (S.keptSeg && S.surface && S.surface.type !== 'finger') ? S.keptSeg : fingerSegment();
+  // A spent finger is fully inert (Larry 2026-11-05, helping hand
+  // revert): it draws no line and steers nothing — otherwise he
+  // oscillates around its x forever instead of running off. A
+  // live fingertip (no segment, not spent) still steers him
+  // toward it, so he bumps it and turns.
+  if (!seg) return (S.finger && S.finger !== S.spentFinger) ? { x: S.finger.x } : null;
+  const dx = seg.bx - seg.ax, dy = seg.by - seg.ay;
+  const t = clamp(((S.x - seg.ax) * dx + (S.y - seg.ay) * dy) / ((dx * dx + dy * dy) || 1), 0, 1);
+  return { x: seg.ax + dx * t, y: seg.ay + dy * t };
+}
+
+// ---------- surfaces ----------
+function surfYAt(surf, x){
+  if (surf.type === 'ground') return groundY;
+  if (surf.type === 'finger'){ const s = fingerSegment(); return s ? segYAt(s, x) : S.y; }
+  return surf.y; // platform object
+}
+function supported(surf, x){
+  if (surf.type === 'ground') return true;
+  if (surf.type === 'finger'){
+    const s = fingerSegment(); if (!s) return false;
+    const [lo, hi] = segSpan(s);
+    return x >= lo - 14 && x <= hi + 14;
+  }
+  return x + 10 > surf.x1 && x - 10 < surf.x2;
+}
+function findLanding(prevBottom, newBottom, x, excludePlat){
+  let best = null;
+  const consider = (surf, y) => {
+    if (y >= prevBottom - 2 && y <= newBottom + 2 && (!best || y < best.y)) best = { surf, y };
+  };
+  if (newBottom >= groundY) consider(GROUND, groundY);
+  for (const p of platforms) if (p !== excludePlat && x + 10 > p.x1 && x - 10 < p.x2) consider(p, p.y);
+  const seg = fingerSegment();
+  if (!(S.finger && S.finger === S.spentFinger) && seg && segClimbable(seg) && supported({ type: 'finger' }, x) && (!S.surface || S.surface.type === 'finger' || (S.surface.type === 'air' ? (!S.fallFrom || segTouchesSurface(seg, S.fallFrom)) : segTouchesSurface(seg, S.surface)))) consider({ type: 'finger' }, segYAt(seg, x)); // a spent finger's line can't be re-landed on; an unconnected line can't be fallen onto either — while falling from a platform the line must touch the platform he ran off (fallFrom), or he falls past it
+  return best;
+}
+
+// ---------- input ----------
+// The latest real touch patch, cached even when it arrives before
+// the pointerdown that creates S.finger (iOS fires touchstart
+// first) — press() merges it in instead of dropping it.
+let pendingPatch = null;
+// first-finger-wins: a second pointer/touch never steals the
+// first finger's line (Larry 2026-10-26: pointing again made the
+// line vanish)
+let activePointer = null, activeTouchId = null;
+function press(x, y, rx, ry, rot, isMouse){
+  // Delete badge: each kept line carries one at its midpoint.
+  // Tapping one deletes that line (and promotes the second into
+  // the first slot, so slot 1 is always filled when any line is kept).
+  S.deletePress = false;
+  if (S.keptSeg){
+    const mx = (S.keptSeg.ax + S.keptSeg.bx) / 2, my = (S.keptSeg.ay + S.keptSeg.by) / 2;
+    if (Math.hypot(x - mx, y - my) <= 28){ S.deletePress = true; S.keptSeg = S.keptSeg2; S.keptSeg2 = null; }
+  }
+  if (!S.deletePress && S.keptSeg2){
+    const mx = (S.keptSeg2.ax + S.keptSeg2.bx) / 2, my = (S.keptSeg2.ay + S.keptSeg2.by) / 2;
+    if (Math.hypot(x - mx, y - my) <= 28){ S.deletePress = true; S.keptSeg2 = null; }
+  }
+  S.finger = { x, y, rx: rx || 22, ry: ry || 22, rot: rot || 0, dragA: isMouse ? { x, y } : null,
+               ox: x, oy: y, anchor: null, dragging: false };
+  if (!isMouse){
+    let ax = x, ay = y;
+    if (pendingPatch && performance.now() - pendingPatch.at < 600 &&
+        Math.hypot(pendingPatch.x - x, pendingPatch.y - y) < 80){
+      S.finger.rx = pendingPatch.rx; S.finger.ry = pendingPatch.ry; S.finger.rot = pendingPatch.rot;
+      ax = pendingPatch.x; ay = pendingPatch.y; // the path starts where the touch first landed
+    }
+    S.finger.anchor = { x: ax, y: ay };
+  }
+  S.steerDone = false;
+  S.spentFinger = null;
+  // Nodes: a press on a node locks the start to it exactly
+  // (no guard — pressing on a node is choosing it). Uses the
+  // start-lock press point (dragA on mouse, anchor on touch).
+  nodeLock = null; startLock = null; snapLock = null; lastNodeFarKey = null;
+  const pp = S.finger.dragA || S.finger.anchor;
+  const n = pp && nearestNode(pp.x, pp.y, NODE_R);
+  if (n){
+    nodeLock = { finger: S.finger, sx: n.x, sy: n.y };
+    logEvent('NODE', 'start=(' + Math.round(n.x) + ',' + Math.round(n.y) + ')');
+  }
+  logEvent('PRESS', 'at=(' + Math.round(x) + ',' + Math.round(y) + ')' + (n ? ' node=(' + Math.round(n.x) + ',' + Math.round(n.y) + ')' : '') + (S.deletePress ? ' badge=deleted-kept-line' : ''));
+}
+function moveFinger(x, y, rx, ry, rot){
+  if (!S.finger) return;
+  S.finger.x = x; S.finger.y = y;
+  if (rx) S.finger.rx = rx; if (ry) S.finger.ry = ry;
+  if (rot !== undefined && rot !== null) S.finger.rot = rot;
+  // a touch that travels is tracing a ramp with its own path
+  if (S.finger.anchor && Math.hypot(x - S.finger.anchor.x, y - S.finger.anchor.y) > 34) S.finger.dragging = true;
+  // moving the finger well away from where it went down = a new command: steer again
+  if (Math.hypot(x - S.finger.ox, y - S.finger.oy) > 50){ S.steerDone = false; S.finger.ox = x; S.finger.oy = y; } // NOTE: spentFinger is NOT reset — one press is one committed line
+}
+function release(){
+  // the line STAYS after lifting: snapshot the live segment (if
+  // any) into a free kept slot — he can finish running it, or
+  // mount it later — until it is used up or deleted. At most two
+  // lines are ever on screen. A spent line is never kept (it
+  // would linger unusable on screen), and a line that is already
+  // kept (a blocked drag, a still point) is not duplicated.
+  // Releasing mid-climb keeps climbing the same line: the slot it
+  // lands in becomes the climbing slot.
+  const s = fingerSegment();
+  let keptNow = false;
+  if (s && !(S.finger && S.finger === S.spentFinger) && s !== S.keptSeg && s !== S.keptSeg2){
+    const copy = { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, len: s.len, node: s.node };
+    // Releasing mid-climb keeps climbing the same line — but only
+    // when the released line IS the climbing line (a live line
+    // just kept, W4). When he drew another line while embarked
+    // on a kept line, the new line's slot must not steal the
+    // climbing slot, or he would switch onto it.
+    // (Larry 2026-11-09 log, ported from endless: when the live
+    // line he is climbing snaps mid-climb and he releases it,
+    // the kept copy is the SNAPPED line — S.climbSeg must follow
+    // it, or the climb would switch to the stale pre-snap line
+    // he mounted while the kept line is the snapped one, and he
+    // would see two lines. So a live line just kept updates
+    // climbSeg to the kept copy; a new line drawn while climbing
+    // a kept line does not, because rampSlot is not 'live' there.)
+    if (!S.keptSeg){ S.keptSeg = copy; if (S.surface.type === 'finger' && S.rampSlot === 'live'){ S.rampSlot = 1; S.climbSeg = copy; } keptNow = true; }
+    else if (!S.keptSeg2){ S.keptSeg2 = copy; if (S.surface.type === 'finger' && S.rampSlot === 'live'){ S.rampSlot = 2; S.climbSeg = copy; } keptNow = true; }
+  }
+  // the release log's green is the kept line's green (own anchors)
+  // when the released line is kept, else the live-line green
+  const wasKept = keptNow || s === S.keptSeg || s === S.keptSeg2;
+  const relGreen = s ? (wasKept ? keptLineWillLand(s) : lineWillLand(s)) : false;
+  logEvent('RELEASE', (S.keptSeg || S.keptSeg2) ? 'kept=' + (S.keptSeg ? segStr(S.keptSeg) : 'none') + (S.keptSeg2 ? ' kept2=' + segStr(S.keptSeg2) : '') + ' green=' + relGreen : 'kept=none spent=' + !!(S.finger && S.finger === S.spentFinger));
+  S.finger = null; pendingPatch = null; S.deletePress = false;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerId !== undefined && activePointer !== null && e.pointerId !== activePointer && S.finger) return;
+  if (e.pointerId !== undefined) activePointer = e.pointerId;
+  const touchy = e.pointerType === 'touch';
+  // some browsers report a 1px placeholder width for touch — ignore tiny values
+  const pw = touchy && e.width >= 4 ? e.width / 2 : null;
+  const ph = touchy && e.height >= 4 ? e.height / 2 : null;
+  press(e.clientX, e.clientY, pw !== null ? pw : (touchy ? 24 : 14),
+        ph !== null ? ph : (touchy ? 24 : 14), 0, e.pointerType === 'mouse');
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerId !== undefined && activePointer !== null && e.pointerId !== activePointer) return;
+  const touchy = e.pointerType === 'touch';
+  moveFinger(e.clientX, e.clientY,
+             touchy && e.width >= 4 ? e.width / 2 : null,
+             touchy && e.height >= 4 ? e.height / 2 : null, null);
+});
+function releasePointer(e){
+  if (e.pointerId !== undefined && activePointer !== null && e.pointerId !== activePointer) return;
+  activePointer = null; release();
+}
+canvas.addEventListener('pointerup', releasePointer);
+canvas.addEventListener('pointercancel', releasePointer);
+function cacheTouch(t){
+  const tc = t.changedTouches && t.changedTouches[0]; if (!tc) return;
+  const tid = tc.identifier;
+  if (S.finger && activeTouchId !== null && tid !== undefined && tid !== activeTouchId) return;
+  if (tid !== undefined && (activeTouchId === null || !S.finger)) activeTouchId = tid;
+  pendingPatch = { x: tc.clientX, y: tc.clientY, rx: tc.radiusX || 0, ry: tc.radiusY || 0,
+                   rot: tc.rotationAngle || 0, at: performance.now() };
+  if (S.finger){
+    moveFinger(tc.clientX, tc.clientY, tc.radiusX, tc.radiusY, tc.rotationAngle || 0);
+    S.finger.rx = tc.radiusX; S.finger.ry = tc.radiusY; S.finger.rot = tc.rotationAngle || 0;
+  }
+}
+canvas.addEventListener('touchstart', cacheTouch, { passive: true });
+canvas.addEventListener('touchmove', cacheTouch, { passive: true });
+function clearTouch(e){
+  const tc = e.changedTouches && e.changedTouches[0];
+  if (!tc || tc.identifier === undefined || tc.identifier === activeTouchId){ pendingPatch = null; activeTouchId = null; }
+}
+canvas.addEventListener('touchend', clearTouch);
+canvas.addEventListener('touchcancel', clearTouch);
+
+// ---------- update ----------
+let last = performance.now();
+function tick(now){
+  const dt = Math.min(0.033, (now - last) / 1000); last = now;
+  LT += dt;
+  // clouds drift slowly left in screen space, wrapping around
+  for (const c of clouds){
+    c.x -= c.v * dt;
+    if (c.x + 40 * c.s < 0) c.x = W + 40 * c.s + Math.random() * 80;
+  }
+  if (S.surface.type !== 'finger') lastGreen = null;
+  if (!LOG_STARTED){ LOG_STARTED = true; logEvent('START', 'training' + ' ' + W + 'x' + H + ' world=' + platforms.map(platStr).join(' ')); }
+  let seg = fingerSegment();
+  const blocker = fingerBlocker();
+
+  // steer toward the finger while he's on a ledge/ground (not on the ramp itself)
+  if (S.finger && !S.steerDone && S.mode === 'run' && S.surface.type !== 'finger'){
+    const t = fingerTarget();
+    if (t){
+      let tx = t.x;
+      if (S.surface.type === 'ground') tx = clamp(tx, 28, W - 28);
+      if (Math.abs(tx - S.x) > 8) S.dir = Math.sign(tx - S.x) || 1;
+    }
+  }
+
+  if (S.mode === 'run'){
+    S.runT += dt;
+    // Drawing another line while embarked on a kept line must
+    // not jump him off it (Larry 2026-10-28): the climb keeps
+    // the kept line he mounted, while the new line is drawn
+    // (and kept on release) alongside it. A badge tap is not a
+    // draw (deletePress keeps the delete-fall), and a live-line
+    // climb is untouched — that line is gone with the old finger.
+    if (S.surface.type === 'finger' && !S.deletePress){
+      if (S.rampSlot === 1 && S.keptSeg) seg = S.keptSeg;
+      else if (S.rampSlot === 2 && S.keptSeg2) seg = S.keptSeg2;
+      else if (S.rampSlot === 2 && S.keptSeg) seg = S.keptSeg; // the other line was deleted and this one promoted
+    }
+    // if his surface was the finger and it's gone (or turned too steep), he falls
+    if (S.surface.type === 'finger' && S.finger && S.finger !== S.rampFinger && seg !== S.keptSeg && seg !== S.keptSeg2) { S.mode = 'fall'; S.vy = 0; logEvent('FALL', 'reason=new-press-replaced-line at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ') seg=' + segStr(seg)); } // a new press replaced a LIVE line he is climbing: drop him instead of snapping him to the new line. A kept line is never replaced (the climb override above keeps it), so this fires only for live lines
+    else if (S.surface.type === 'finger' && (!seg || !segClimbable(seg))) { S.mode = 'fall'; S.vy = 0; if (S.rampSlot === 'live') S.spentFinger = S.rampFinger; clearKept(seg); logEvent('FALL', 'reason=departure-spent at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ') seg=' + segStr(seg)); } // ANY departure from a ramp spends the line — a flicker/steepening that drops him can never let him climb back on. EXCEPT a kept line's departure, which spends no finger (a line drawn while climbing stays live)
+    else {
+      let nx = S.x + S.dir * CFG.speed * dt;
+
+      // fingertip blocker: bump and turn the other way
+      if (blocker){
+        const cyM = S.y - CFG.bodyH / 2;
+        if (Math.abs(cyM - blocker.y) < blocker.r + 30){
+          const front = nx + S.dir * CFG.halfW;
+          if (S.dir > 0 && front >= blocker.x - blocker.r && S.x < blocker.x) { nx = blocker.x - blocker.r - CFG.halfW - 1; S.dir = -1; S.steerDone = true; }
+          else if (S.dir < 0 && front <= blocker.x + blocker.r && S.x > blocker.x) { nx = blocker.x + blocker.r + CFG.halfW + 1; S.dir = 1; S.steerDone = true; }
+        }
+      }
+
+      // First line first (Larry 2026-11-03): while a kept first
+      // line is still pending, a second line — live (being drawn)
+      // or kept — must not be mounted before it. With the finger
+      // up this already held (fingerSegment returns the first
+      // kept line); the live line being drawn was the hole.
+      if (S.keptSeg) seg = S.keptSeg;
+      // mount a climbable ramp he has just reached — judged at the
+      // ramp point nearest his body, so his front reaching the
+      // ramp's low edge counts, not just his centre arriving
+      if (!(S.finger && S.finger === S.spentFinger) && S.surface.type !== 'finger' && seg && segClimbable(seg) && segTouchesSurface(seg, S.surface)){
+        const [lo, hi] = segSpan(seg);
+        const mx = clamp(nx, lo, hi), yAt = segYAt(seg, mx);
+        // front-line rule (Larry 2026-10-26): a line drawn in
+        // front must not change his trajectory or location — he
+        // keeps running straight and mounts only at the line's
+        // foot, from the side where it makes the largest angle
+        // with the surface (the foot between him and the far
+        // end). Approaching from the high/acute side, or mid-line,
+        // he runs past instead of snapping onto it. But a foot
+        // just BEHIND him still counts as AT it — the exit steps
+        // him 4px past the far end, so a green line starting at
+        // the node he just landed on would otherwise be ignored
+        // (Larry 2026-11-09 log, ported from endless). The
+        // tolerance is 8px behind him only, so a line he is
+        // still approaching from the acute side still does not
+        // mount.
+        const surfY = S.surface.type === 'ground' ? groundY : S.surface.y;
+        const foot = segFoot(seg, surfY, S.dir, nx); // nearest end to where he is headed — a bridge back from the edge he just landed on has its foot at the near end, so he turns toward it instead of running past it off the edge (Larry 2026-11-09, ported from endless)
+        const dFoot = S.x - foot.x;
+        const justPast = dFoot * S.dir > 0 && Math.abs(dFoot) <= 8; // the foot is just behind him (he just passed it / the exit put him there)
+        if (Math.abs(nx - mx) <= CFG.halfW + 8 && Math.abs(yAt - S.y) <= CFG.climb && (dFoot * (foot.farX - foot.x) <= 0 || justPast)){
+          // stepping onto a ramp means travelling ALONG it, toward
+          // its far (climb-target) end
+          if (Math.abs(foot.farX - foot.x) > 12) S.dir = Math.sign(foot.farX - foot.x);
+          S.rampOrigin = S.surface; S.surface = { type: 'finger' }; S.rampDir = S.dir; S.x = nx; S.y = yAt; S.rampFinger = S.finger; S.rampSlot = (seg === S.keptSeg) ? 1 : ((seg === S.keptSeg2) ? 2 : 'live');
+          S.steerDone = true;
+          { const g = lineWillLand(seg); lastGreen = g; logEvent('MOUNT', 'foot=(' + Math.round(nx) + ',' + Math.round(yAt) + ') dir=' + S.dir + ' from=' + platStr(S.rampOrigin) + ' seg=' + segStr(seg) + ' green=' + g); }
+        }
+      }
+
+      if (S.surface.type === 'finger' && seg){
+        S.dir = S.rampDir; // committed direction — nothing turns him mid-ramp
+        { const g = lineWillLand(seg); if (g !== lastGreen){ lastGreen = g; logEvent('GREEN', 'now=' + g + ' seg=' + segStr(seg) + ' at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ')'); } }
+        // crossing rule: if this line runs through a platform
+        // ahead of him, he does NOT pass through it — at the
+        // crossing he drops vertically to the next platform below.
+        const block = rampBlocker(seg, S.x, S.rampDir);
+        if (block && ((S.dir > 0 && nx >= block.x) || (S.dir < 0 && nx <= block.x))){
+          S.x = block.x; S.mode = 'fall'; S.vy = 0;
+          S.verticalFall = true; S.fallExclude = block.plat; if (S.rampSlot === 'live') S.spentFinger = S.rampFinger; clearKept(seg);
+          S.surface = { type: 'air' };
+          logEvent('FALL', 'reason=crossing at=(' + block.x + ',' + block.y + ') crossed=' + platStr(block.plat) + ' seg=' + segStr(seg));
+        } else {
+        S.x = nx; S.y = segYAt(seg, S.x);
+        const [lo, hi] = segSpan(seg);
+        // only the FAR edge (in his running direction) is an exit —
+        // being just short of the entry edge is him stepping on
+        if ((S.dir > 0 && S.x > hi + 6) || (S.dir < 0 && S.x < lo - 6)){
+          // ran off the ramp's far edge: step onto a touching ledge, else fall
+          const endX = S.dir > 0 ? hi : lo;
+          const endY = segYAt(seg, endX);
+          // shared landing check (the same one green uses): step
+          // onto a touching ledge (exact, snap, or step-up), drop
+          // vertically onto a platform below, or fall
+          const landing = exitLanding(endX, endY);
+          const plat = landing && landing.plat ? landing.plat : null;
+          const drop = landing && landing.drop ? landing.drop : null;
+          if (S.rampSlot === 'live') S.spentFinger = S.rampFinger; clearKept(seg); // only a live line's press is spent on disembarking (it frees its slot for another line); a kept line's exit spends no finger, so a line drawn while climbing stays live and mountable
+          if (plat){ S.surface = plat; S.y = plat.y; S.x = clamp(endX + S.dir * 4, plat.x1 - 6, plat.x2 + 6); }
+          else if (drop){ S.x = clamp(endX, drop.x1, drop.x2); S.mode = 'fall'; S.vy = 0; S.verticalFall = true; S.fallExclude = null; S.surface = { type: 'air' }; }
+          else { S.mode = 'fall'; S.vy = 0; }
+          logEvent('EXIT', 'end=(' + Math.round(endX) + ',' + Math.round(endY) + ') landing=' + (plat ? 'plat ' + platStr(plat) : (drop ? 'drop ' + platStr(drop) : 'fall')) + ' seg=' + segStr(seg));
+        }
+        }
+      } else if (S.surface.type !== 'finger'){
+        S.x = nx;
+        if (S.surface.type === 'ground'){
+          if (S.x < 28){ S.x = 28; S.dir = 1; }
+          if (S.x > W - 28){ S.x = W - 28; S.dir = -1; }
+          S.y = groundY;
+        } else { // platform
+          S.y = S.surface.y;
+          // He can run off the platform's edge again (Larry
+          // 2026-11-05, reverting the helping hand): past the
+          // edge he falls. The mount check above runs first, so
+          // a ramp whose foot is at the edge still mounts
+          // before he can run off.
+          if (S.x < S.surface.x1 || S.x > S.surface.x2){
+            const surf = S.surface;
+            S.mode = 'fall'; S.vy = 0; S.surface = { type: 'air' }; S.fallFrom = surf; S.fallExclude = surf;
+            logEvent('FALL', 'reason=ran-off-ledge at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ') surf=' + platStr(surf));
+          }
+        }
+      }
+    }
+  }
+
+  if (S.mode === 'fall'){
+    const prevBottom = S.y;
+    S.vy += CFG.gravity * dt;
+    // a vertical fall (ramp crossing) drops straight down: no
+    // mid-air running, no wall turns — x is locked until landing
+    if (!S.verticalFall){
+      S.x += S.dir * CFG.speed * dt;   // keeps running in his direction mid-air
+      if (S.x < 28){ S.x = 28; S.dir = 1; }
+      if (S.x > W - 28){ S.x = W - 28; S.dir = -1; }
+    }
+    S.y += S.vy * dt;
+    // fingertip in mid-air: shove him off it, turned away
+    if (blocker && !S.verticalFall){
+      const cyM = S.y - CFG.bodyH / 2;
+      const dx = S.x - blocker.x, dy = cyM - blocker.y;
+      if (Math.hypot(dx, dy) < blocker.r + 26 && Math.abs(dx) > 1){
+        S.x = blocker.x + Math.sign(dx) * (blocker.r + CFG.halfW + 2);
+        S.dir = Math.sign(dx);
+        S.steerDone = true;
+      }
+    }
+    let landed = findLanding(prevBottom, S.y, S.x, S.fallExclude);
+    // the ground is an absolute floor — even a fall that somehow
+    // started below it (a ramp end dipping past ground level)
+    // lands on it instead of falling forever
+    if (!landed && S.y >= groundY) landed = { surf: GROUND, y: groundY };
+    if (landed){ S.y = landed.y; if (landed.surf.type === 'finger'){ S.rampOrigin = S.surface; S.rampDir = S.dir; S.rampFinger = S.finger; S.rampSlot = (seg === S.keptSeg) ? 1 : ((seg === S.keptSeg2) ? 2 : 'live'); } S.surface = landed.surf; S.vy = 0; S.mode = 'run'; S.verticalFall = false; S.fallExclude = null; S.fallFrom = null; logEvent('LAND', 'surf=' + (landed.surf.type === 'finger' ? 'finger ' + segStr(seg) : platStr(landed.surf)) + ' at=(' + Math.round(S.x) + ',' + Math.round(S.y) + ')'); }
+  }
+
+
+  draw(now);
+  requestAnimationFrame(tick);
+}
+
+// ---------- draw ----------
+function rrect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+function drawCloud(c){
+  // one soft rounded cloud: a flat ellipse body with two puffs on top
+  ctx.fillStyle = 'rgba(255,255,255,' + c.a + ')';
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, 36 * c.s, 13 * c.s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(c.x - 14 * c.s, c.y - 8 * c.s, 13 * c.s, 0, Math.PI * 2);
+  ctx.arc(c.x + 12 * c.s, c.y - 11 * c.s, 16 * c.s, 0, Math.PI * 2);
+  ctx.fill();
+}
+function draw(now){
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#eaf6ff'); grad.addColorStop(1, '#fdfdf8');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  // clouds: soft rounded whites drifting behind everything
+  for (const c of clouds) drawCloud(c);
+
+  // ground
+  ctx.fillStyle = '#7a6248'; ctx.fillRect(0, groundY, W, H - groundY);
+  ctx.fillStyle = '#97b56a'; ctx.fillRect(0, groundY, W, 7);
+
+  // platforms — pill ends with a faint transparent pale-yellow
+  // outline (endless parity, Larry 2026-11-06: radius 7, fully
+  // rounded on a 14px bar; rgba(255,224,130,.55), 2px). The top
+  // strip is clipped to the bar so its square corners can't poke
+  // past the rounded ends. Purely visual: p.x1/p.x2 unchanged.
+  for (const p of platforms){
+    ctx.fillStyle = '#8a6f4d';
+    rrect(p.x1, p.y, p.x2 - p.x1, 14, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,224,130,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save();
+    rrect(p.x1, p.y, p.x2 - p.x1, 14, 7); ctx.clip();
+    ctx.fillStyle = '#b08d5f';
+    ctx.fillRect(p.x1 + 2, p.y, p.x2 - p.x1 - 4, 5);
+    ctx.restore();
+  }
+
+  // nodes: orange circles with a thick lighter outline only at
+  // platform ends leading to a gap — the snap targets — except
+  // a node a green line snaps into, which turns dark green
+  // with a light green border (Larry 2026-11-02). A locked
+  // start node gets a blue ring; a far node under the finger
+  // gets a green ring; the rings sit outside the outline. A
+  // green node needs no preview ring — the green node IS the
+  // signal.
+  const greenSet = greenSnapNodes();
+  for (const n of allNodes()){
+    if (greenSet.has(n.x + ',' + n.y)){
+      ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW + 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#a5d6a7'; ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW, 0, Math.PI * 2);
+      ctx.fillStyle = '#1e7d32'; ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW + 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffc98a'; ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x, n.y, NODE_DRAW, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff7a1a'; ctx.fill();
+    }
+  }
+  if (nodeLock && nodeLock.finger === S.finger){
+    ctx.beginPath(); ctx.arc(nodeLock.sx, nodeLock.sy, NODE_DRAW + 8, 0, Math.PI * 2);
+    ctx.lineWidth = 3; ctx.strokeStyle = '#3a86ff'; ctx.stroke();
+    const far = S.finger && nearestNode(S.finger.x, S.finger.y, NODE_R, nodeLock.sx, nodeLock.sy);
+    if (far && !greenSet.has(far.x + ',' + far.y)){
+      ctx.beginPath(); ctx.arc(far.x, far.y, NODE_DRAW + 8, 0, Math.PI * 2);
+      ctx.lineWidth = 3; ctx.strokeStyle = '#2ecc71'; ctx.stroke();
+    }
+  }
+  // Snap flash (Larry 2026-11-02): one expanding, fading ring
+  // + a brief bright glow on the node the line just snapped
+  // into. ~250ms, then it settles into the node's state color.
+  if (snapFlash){
+    const age = performance.now() - snapFlash.t0;
+    if (age < 250){
+      const p = age / 250;
+      const cur = allNodes().find(n => n.plat === snapFlash.plat && n.edge === snapFlash.edge);
+      const fx = cur ? cur.x : snapFlash.x, fy = cur ? cur.y : snapFlash.y;
+      ctx.strokeStyle = 'rgba(165,214,167,' + (1 - p).toFixed(3) + ')';
+      ctx.lineWidth = 5 * (1 - p) + 1;
+      ctx.beginPath(); ctx.arc(fx, fy, NODE_DRAW + 6 + p * 22, 0, Math.PI * 2); ctx.stroke();
+      if (p < 0.5){
+        ctx.fillStyle = 'rgba(255,255,255,' + ((0.5 - p) * 1.2).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(fx, fy, NODE_DRAW, 0, Math.PI * 2); ctx.fill();
+      }
+    } else snapFlash = null;
+  }
+
+  // finger: ramp segment or fingertip circle
+  const seg = fingerSegment(), blocker = fingerBlocker();
+  // Second kept line: drawn dimmer like any kept line, when it is
+  // not already the active segment below (so both kept lines stay
+  // visible even while a spent fall hides the active one).
+  for (const k of [S.keptSeg, S.keptSeg2]){
+    if (k && k !== seg){
+      const lands = keptLineWillLand(k);
+      ctx.strokeStyle = lands ? 'rgba(30,125,50,.6)' : 'rgba(255,205,140,.6)'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(k.ax, k.ay); ctx.lineTo(k.bx, k.by); ctx.stroke();
+    }
+  }
+  if (seg){
+    const kept = !S.finger && S.keptSeg;
+    // a kept line that is not being climbed shows its own-anchor
+    // green; a live line, and a line being climbed, keep lineWillLand
+    const isKept = seg === S.keptSeg || seg === S.keptSeg2;
+    const climbing = S.surface && S.surface.type === 'finger';
+    const lands = (isKept && !climbing) ? keptLineWillLand(seg) : lineWillLand(seg);
+    // single stroke, NO outline, with ROUNDED caps (Larry
+    // 2026-11-01, same as endless). Cosmetic only: a round cap
+    // extends the VISIBLE line 8px past each logical end (half
+    // the 16px width), so a line can look like it touches a
+    // platform when its logical end stops just short — the
+    // logical segment, the green rule, and mount/exit are all
+    // unchanged, and the color (not the cap) is what promises a
+    // connection.
+    ctx.strokeStyle = lands ? (kept ? 'rgba(30,125,50,.6)' : 'rgba(30,125,50,.9)') : (kept ? 'rgba(255,205,140,.6)' : 'rgba(255,205,140,.9)'); ctx.lineWidth = 16; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(seg.ax, seg.ay); ctx.lineTo(seg.bx, seg.by); ctx.stroke();
+  } else if (blocker){
+    ctx.fillStyle = 'rgba(230,170,90,.5)';
+    ctx.beginPath(); ctx.arc(blocker.x, blocker.y, blocker.r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,140,70,.6)'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // delete badges on the kept lines: a small circled x at each
+  // midpoint — tapping one deletes that line (see press())
+  for (const k of [S.keptSeg, S.keptSeg2]){
+    if (!k) continue;
+    const mx = (k.ax + k.bx) / 2, my = (k.ay + k.by) / 2;
+    ctx.beginPath(); ctx.arc(mx, my, 13, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#333'; ctx.stroke();
+    ctx.fillStyle = '#333'; ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('×', mx, my + 1);
+  }
+
+  // mouse
+  const frames = S.dir > 0 ? SPRITES.runR : SPRITES.runL;
+  let src;
+  if (S.mode === 'fall') src = frames[1];
+  else src = frames[Math.floor(S.runT / 0.11) % frames.length];
+  const img = IMG[src];
+  const dw = CFG.drawW, dh = dw * 560 / 720;
+  ctx.drawImage(img, S.x - dw * 0.479, S.y - dh * 0.90, dw, dh);
+}
+// Test hook (smoke only — the harness loads endless; this lets a
+// script drive the static game the same way for verification).
+globalThis.__mvpTest = {
+  get S(){ return S; },
+  get platforms(){ return platforms; },
+  get groundY(){ return groundY; },
+  get clouds(){ return clouds; },
+  get W(){ return W; }, get H(){ return H; },
+  get log(){ return LOG; },
+  get CFG(){ return CFG; },
+  nodes(){ return allNodes().map(n => ({ x: n.x, y: n.y })); },
+  greenNodes: () => [...greenSnapNodes().keys()],
+  getSnapFlash: () => snapFlash,
+  get helpOpen(){ return helpOpen; },
+  get capDrawn(){ return capDrawn; },
+  openHelp, closeHelp,
+  keptLineWillLand, lineWillLand, segNodeConnected,
+  clearKept,
+};
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

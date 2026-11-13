@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mousy Run — Title Screen Mockup</title>
+<!--
+  MOCKUP ONLY — design sketch, not wired into the game.
+  Built 2026-11-05 from Larry's 2026-11-04 question "How did flappy bird
+  landing page look like" and the assistant's offer to sketch a Mousy Run
+  version in the same stripped-down style.
+  Flappy rules applied: same background as gameplay, chunky pixel title,
+  one bobbing character, one instruction, Play button, nothing else.
+  Uses the real mouse sprite (mouse-right.png) and the game's own palette:
+  sky #eaf6ff, platforms #b08d5f / #5a4632, green line rgba(30,125,50),
+  orange node #ff7a1a with #ffc98a outline, cream panel #fff8ea.
+  Tap PLAY to see the mouse run up the one green line (mockup animation only).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: #2b2b2b; font-family: 'Press Start 2P', 'Courier New', monospace;
+         display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  .note { color: #bbb; font-family: sans-serif; font-size: 12px; text-align: center;
+          padding: 10px 16px; max-width: 420px; line-height: 1.5; }
+  .note b { color: #fff; }
+  .phone { position: relative; width: min(390px, 100vw); height: min(700px, calc(100vh - 90px));
+           min-height: 560px; overflow: hidden; background: #eaf6ff; }
+  /* sky */
+  .cloud { position: absolute; background: #fff; border-radius: 999px; opacity: .9; }
+  .cloud::before, .cloud::after { content: ""; position: absolute; background: #fff; border-radius: 50%; }
+  .cloud.c1 { width: 90px; height: 26px; top: 12%; left: 8%; }
+  .cloud.c1::before { width: 44px; height: 44px; top: -22px; left: 14px; }
+  .cloud.c1::after { width: 30px; height: 30px; top: -14px; left: 48px; }
+  .cloud.c2 { width: 70px; height: 20px; top: 22%; right: 6%; }
+  .cloud.c2::before { width: 34px; height: 34px; top: -17px; left: 12px; }
+  .cloud.c2::after { width: 24px; height: 24px; top: -11px; left: 38px; }
+  .cloud.c3 { width: 56px; height: 16px; top: 7%; right: 28%; opacity: .7; }
+  .cloud.c3::before { width: 26px; height: 26px; top: -13px; left: 10px; }
+  /* bushes */
+  .bush { position: absolute; bottom: 64px; background: #97b56a; border-radius: 50% 50% 0 0; }
+  .bush.b1 { width: 150px; height: 46px; left: -20px; }
+  .bush.b2 { width: 120px; height: 36px; right: -10px; }
+  .bush.b3 { width: 90px; height: 28px; left: 38%; }
+  /* title */
+  h1 { position: absolute; top: 7%; width: 100%; text-align: center; z-index: 5;
+       font-size: 34px; line-height: 1.35; color: #fff;
+       text-shadow: 3px 0 #333, -3px 0 #333, 0 3px #333, 0 -3px #333,
+                    3px 3px #333, -3px -3px #333, 3px -3px #333, -3px 3px #333,
+                    0 6px 0 rgba(0,0,0,.18); letter-spacing: 1px; }
+  h1 .run { color: #ffd94a; }
+  /* platforms */
+  .plat { position: absolute; height: 14px; background: #b08d5f;
+          border-bottom: 4px solid #5a4632; border-radius: 3px; z-index: 3; }
+  .plat.low { left: 6%; bottom: 170px; width: 46%; }
+  .plat.high { right: 6%; bottom: 340px; width: 40%; }
+  .cheese { position: absolute; right: 16%; bottom: 354px; font-size: 30px; z-index: 4;
+            filter: drop-shadow(0 3px 2px rgba(0,0,0,.2)); }
+  /* green ramp line, drawn from low platform up to high platform */
+  .ramp { position: absolute; left: 24%; bottom: 184px; width: 150px; height: 16px; z-index: 2;
+          background: rgba(30,125,50,.9); border-radius: 8px;
+          transform: rotate(-38deg); transform-origin: left center; }
+  .node { position: absolute; width: 18px; height: 18px; border-radius: 50%;
+          background: #ff7a1a; border: 4px solid #ffc98a; z-index: 4; }
+  .node.start { left: 23%; bottom: 176px; }
+  .node.end { right: 8%; bottom: 348px; }
+  /* mouse, bobbing on the low platform */
+  .mouse { position: absolute; left: 12%; bottom: 184px; width: 92px; z-index: 6;
+           animation: bob 1.1s ease-in-out infinite; transition: none; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .mouse.running { animation: none; }
+  /* finger-drag hint along the ramp */
+  .drag-hint { position: absolute; left: 33%; bottom: 268px; z-index: 7; font-size: 26px;
+               animation: draghint 1.6s ease-in-out infinite; }
+  @keyframes draghint { 0%,100% { transform: translate(0,0); opacity: .55; }
+                        50% { transform: translate(34px,-30px); opacity: 1; } }
+  /* Get Ready + instruction */
+  .ready { position: absolute; top: 24%; width: 100%; text-align: center; z-index: 5;
+           font-size: 15px; color: #333; text-shadow: 2px 2px 0 #fff; }
+  .howto { position: absolute; top: 29.5%; width: 100%; text-align: center; z-index: 5;
+           font-size: 11px; line-height: 1.9; color: #5a4632; }
+  .howto .green { color: #1e7d32; }
+  /* buttons */
+  .buttons { position: absolute; bottom: 96px; width: 100%; display: flex; gap: 14px;
+             justify-content: center; z-index: 8; }
+  button { font-family: 'Press Start 2P', 'Courier New', monospace; font-size: 15px;
+           padding: 16px 22px; border: 3px solid #333; border-radius: 10px; cursor: pointer;
+           box-shadow: 0 4px 0 #333; }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #333; }
+  .play { background: #2a9d2a; color: #fff; }
+  .score { background: #fff8ea; color: #333; }
+  /* ground strip */
+  .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; z-index: 9;
+            background: repeating-linear-gradient(90deg, #7ec850 0 26px, #6db844 26px 52px);
+            border-top: 6px solid #5a4632; }
+  .ground::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 22px;
+                   background: #c9b896; border-top: 3px solid #8a7a63; }
+  .best { position: absolute; bottom: 74px; width: 100%; text-align: center; z-index: 10;
+          font-size: 9px; color: #5a4632; }
+</style>
+</head>
+<body>
+  <div class="note"><b>MOUSY RUN — title screen mockup.</b> Flappy-style: same sky as gameplay, pixel title, bobbing mouse, one instruction, Play. Tap PLAY for a mockup-only run up the green line. Not wired into the game.</div>
+  <div class="phone" id="phone">
+    <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    <h1>MOUSY<br><span class="run">RUN</span></h1>
+    <div class="ready">GET READY!</div>
+    <div class="howto">DRAW A RAMP<br><span class="green">GREEN MEANS GO</span></div>
+    <div class="bush b1"></div><div class="bush b2"></div><div class="bush b3"></div>
+    <div class="plat low"></div>
+    <div class="plat high"></div>
+    <div class="cheese">&#129472;</div>
+    <div class="ramp"></div>
+    <div class="node start"></div>
+    <div class="node end"></div>
+    <img class="mouse" id="mouse" src="mouse-right.png" alt="Mousy">
+    <div class="drag-hint">&#128070;</div>
+    <div class="best">BEST &mdash; &middot; TAP PLAY, DRAW, CLIMB</div>
+    <div class="buttons">
+      <button class="play" id="playBtn">PLAY</button>
+      <button class="score" id="scoreBtn">SCORE</button>
+    </div>
+    <div class="ground"></div>
+  </div>
+<script>
+  // Mockup-only: PLAY runs the mouse up the green ramp, then resets. No game logic.
+  var mouse = document.getElementById('mouse');
+  var btn = document.getElementById('playBtn');
+  var running = false;
+  btn.addEventListener('click', function () {
+    if (running) return;
+    running = true;
+    mouse.classList.add('running');
+    mouse.style.transition = 'left 1.1s ease-in-out, bottom 1.1s ease-in-out';
+    mouse.style.left = '56%';
+    mouse.style.bottom = '354px';
+    setTimeout(function () {
+      mouse.style.transition = 'none';
+      mouse.style.left = '12%';
+      mouse.style.bottom = '184px';
+      mouse.classList.remove('running');
+      running = false;
+    }, 1600);
+  });
+  document.getElementById('scoreBtn').addEventListener('click', function () {
+    alert('Score screen goes here — mockup only.');
+  });
+</script>
+</body>
+</html>
