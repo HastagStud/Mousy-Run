@@ -97,7 +97,7 @@
 // unreachable from the screen). The developer flips it per
 // environment — true while Jack is testing, false for the
 // real game. The home icon is not a QA tool; it always shows.
-const QA_TOOLS = true;
+const QA_TOOLS = false;
 if (!QA_TOOLS){
   for (const id of ['reset', 'logBtn', 'boostBtn']){
     const el = document.getElementById(id);
