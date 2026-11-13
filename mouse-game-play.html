@@ -127,6 +127,17 @@
 // is a wall).
 // ============================================================
 
+// QA Tools (Jack 2026-11-13): the LOG button is a test tool, not part
+// of the real game. Flip this to false and it disappears (its panel
+// stays in the code, just unreachable from the screen). The developer
+// flips it per environment — true while Jack is testing, false for the
+// real game. The "?" help button is not a QA tool; it always shows.
+const QA_TOOLS = false;
+if (!QA_TOOLS){
+  const logBtn = document.getElementById('logBtn');
+  if (logBtn && logBtn.style) logBtn.style.display = 'none';
+}
+
 const CFG = {
   speed: 138,          // px/s, his constant run speed
   gravity: 1900,       // px/s^2 while falling
@@ -1712,6 +1723,7 @@ globalThis.__mvpTest = {
   getSnapFlash: () => snapFlash,
   get helpOpen(){ return helpOpen; },
   get capDrawn(){ return capDrawn; },
+  QA_TOOLS,
   openHelp, closeHelp,
   keptLineWillLand, lineWillLand, segNodeConnected,
   clearKept,

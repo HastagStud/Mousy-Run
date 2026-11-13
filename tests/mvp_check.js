@@ -16,13 +16,17 @@ const el = () => ({
   },
   width: 0, height: 0, value: '', textContent: '',
 });
+// elements are singletons per id, so tests can read back a style
+// the game set (e.g. the QA_TOOLS hiding of the LOG button)
+const elements = {};
+const getEl = (id) => (elements[id] = elements[id] || el());
 const sandbox = {
   console, Math, JSON, Array, Object, Number, String, Boolean, parseInt, parseFloat,
   isNaN, isFinite, setTimeout(){}, clearTimeout(){},
   innerWidth: 390, innerHeight: 844, devicePixelRatio: 1,
   performance: { now: () => fakeNow },
   requestAnimationFrame(){}, addEventListener(){},
-  document: { getElementById: el, createElement: el, addEventListener(){} },
+  document: { getElementById: getEl, createElement: el, addEventListener(){} },
   Image: class { constructor(){ this.src = ''; } },
   window: {},
 };
@@ -416,5 +420,16 @@ release();
   assert(mounted, 'mount-behind: must mount the kept bridge at its near end, got mode=' + S.mode + ' x=' + Math.round(S.x) + ' surface=' + (S.surface && S.surface.type));
   assert(S.dir === -1, 'mount-behind: must turn left along the bridge, got dir=' + S.dir);
   console.log('ok: mount-behind bridge mounts at the near end and turns him toward it');
+}
+// QA Tools (Jack 2026-11-13): the training LOG button is a test tool,
+// so it hides when QA_TOOLS is false (the real game); the "?" help
+// button is not a QA tool and always shows.
+{
+  assert(T.QA_TOOLS === false, 'QA: training QA_TOOLS must default to false, got ' + T.QA_TOOLS);
+  const logBtn = sandbox.document.getElementById('logBtn');
+  assert(logBtn.style.display === 'none', 'QA: training LOG must hide when QA_TOOLS is false, got display=' + logBtn.style.display);
+  const helpBtn = sandbox.document.getElementById('helpBtn');
+  assert(helpBtn.style.display !== 'none', 'QA: training "?" must show (it is not a QA tool)');
+  console.log('ok: QA off hides the training LOG, "?" still shows');
 }
 console.log(process.exitCode ? 'MVP CHECKS FAILED' : 'ALL MVP CHECKS PASSED');
