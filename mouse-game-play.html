@@ -20,7 +20,7 @@
   #logPanel button { border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     border-radius:999px; padding:7px 14px; font-size:13px; margin-right:8px; }
   #logStatus { font-size:12px; color:#7a6a55; }
-  #helpBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:12px;
+  #helpBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:68px;
     width:44px; height:44px; border-radius:50%;
     border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     font-size:20px; font-weight:700; padding:0; }
@@ -1297,8 +1297,14 @@ function release(){
     // would see two lines. So a live line just kept updates
     // climbSeg to the kept copy; a new line drawn while climbing
     // a kept line does not, because rampSlot is not 'live' there.)
+    // A second line is only allowed while the mouse is mounted on a ramp
+    // (Jack 2026-11-12: the second line is for chaining while climbing).
+    // Standing on a platform or the ground, a new line replaces the
+    // first kept line instead — a second line up without ever climbing
+    // the first is not a chain.
     if (!S.keptSeg){ S.keptSeg = copy; if (S.surface.type === 'finger' && S.rampSlot === 'live'){ S.rampSlot = 1; S.climbSeg = copy; } keptNow = true; }
-    else if (!S.keptSeg2){ S.keptSeg2 = copy; if (S.surface.type === 'finger' && S.rampSlot === 'live'){ S.rampSlot = 2; S.climbSeg = copy; } keptNow = true; }
+    else if (S.surface.type === 'finger' && !S.keptSeg2){ S.keptSeg2 = copy; if (S.rampSlot === 'live'){ S.rampSlot = 2; S.climbSeg = copy; } keptNow = true; }
+    else if (S.surface.type !== 'finger'){ S.keptSeg = copy; S.keptSeg2 = null; keptNow = true; }
   }
   // the release log's green is the kept line's green (own anchors)
   // when the released line is kept, else the live-line green

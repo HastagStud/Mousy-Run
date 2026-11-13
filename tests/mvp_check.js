@@ -125,20 +125,31 @@ press(100, 680); move(320, 505);
 s = seg();
 assert(T.lineWillLand(s) === true, 'V8 step-on stays green: ' + segStr(s));
 release();
-// Touch: two touch lines stay kept
+// Touch: two touch draws while standing — the second replaces the first
+// (Jack 2026-11-12: a second line is only allowed while mounted on the
+// first; standing, a new draw replaces the kept line, no second slot)
 setWorld(PLATS, 150, 700, 1);
 pressTouch(100, 680); move(320, 505); release();
 pressTouch(150, 660); move(280, 560); release();
-assert(S.keptSeg !== null && S.keptSeg2 !== null, 'TOUCH: two lines kept after two touch draws');
-// T1: drawing a second line adds it
+assert(S.keptSeg && S.keptSeg.ax === 150, 'TOUCH: second touch draw replaces the first while standing');
+assert(S.keptSeg2 === null, 'TOUCH: no second line while standing');
+// T1: drawing a second line while standing replaces the first (no mount yet)
 setWorld(PLATS, 150, 700, 1);
 press(100, 680); move(320, 505); release();
 assert(S.keptSeg && S.keptSeg.ax === 100, 'T1 first line kept');
 press(150, 660); move(280, 560); release();
-assert(S.keptSeg && S.keptSeg.ax === 100, 'T1 first line still kept after second draw');
-assert(S.keptSeg2 && S.keptSeg2.ax === 150, 'T1 second line kept alongside');
-assert(T.log[T.log.length - 1].includes('kept2='), 'T1 release log shows kept2');
-// T2: third draw blocked
+assert(S.keptSeg && S.keptSeg.ax === 150, 'T1 second draw replaces the first while standing');
+assert(S.keptSeg2 === null, 'T1 no second line while standing');
+assert(!T.log[T.log.length - 1].includes('kept2='), 'T1 release log shows no kept2 while standing');
+// T2: third draw blocked — first build two lines the allowed way
+// (mount line 1, then draw line 2 while climbing), then a third draw
+// while still mounted is blocked because both slots are full.
+setWorld(PLATS, 70, 700, 1);
+press(100, 680); move(320, 505); release();
+assert(runUntilFinger(), 'T2 mounted kept line A (slot 1)');
+press(150, 660); move(280, 560); release();
+assert(S.keptSeg && S.keptSeg.ax === 100, 'T2 first line still kept');
+assert(S.keptSeg2 && S.keptSeg2.ax === 150, 'T2 second line kept while climbing');
 press(120, 640); move(300, 520);
 s = seg();
 assert(s === S.keptSeg, 'T2 third drag draws nothing, returns first kept line');
