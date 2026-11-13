@@ -26,11 +26,14 @@ function loadGame(file, opts) {
       querySelector: () => makeEl(),
     };
   }
+  // window-level listeners (e.g. resize) are recorded so tests can
+  // dispatch synthetic window events
+  const windowHandlers = {};
   const sandbox = {
     innerWidth: (opts && opts.width) || 390, innerHeight: (opts && opts.height) || 844, devicePixelRatio: 1,
     performance: { now: () => fakeNow },
     setTimeout: () => {}, requestAnimationFrame: () => {},
-    addEventListener: () => {},
+    addEventListener: (t, fn) => { (windowHandlers[t] = windowHandlers[t] || []).push(fn); },
     Image: class { set src(v) {} },
     document: { getElementById: (id) => (elements[id] = elements[id] || makeEl()) },
     console,
@@ -83,7 +86,12 @@ function loadGame(file, opts) {
     const list = (canvas && canvas._handlers[type]) || [];
     for (const fn of list) fn(evt);
   }
-  return { sandbox, T, S, assert, tick, press, pressTouch, move, release, setWorld, settle, runToRow, fireCanvas };
+  // dispatch a synthetic event to the window listeners (e.g. resize)
+  function fireWindow(type, evt) {
+    const list = windowHandlers[type] || [];
+    for (const fn of list) fn(evt);
+  }
+  return { sandbox, T, S, assert, tick, press, pressTouch, move, release, setWorld, settle, runToRow, fireCanvas, fireWindow };
 }
 
 module.exports = { loadGame };

@@ -307,7 +307,14 @@ function burstSparkles(el){
 buildWorld();
 fitCanvas();
 addEventListener('resize', () => {
-  W = innerWidth; H = innerHeight; buildWorld(); fitCanvas(); demoReset();
+  // Only rebuild the world when the WIDTH changes (a real orientation
+  // change). A height-only change is iOS Safari's URL bar hiding or
+  // showing when Jack taps the screen — rebuilding there regenerates
+  // every platform at random, so the platforms visibly jump. A height
+  // change just resizes the canvas; the world stays put.
+  const newW = innerWidth, newH = innerHeight;
+  if (newW !== W){ W = newW; H = newH; buildWorld(); fitCanvas(); demoReset(); }
+  else { H = newH; fitCanvas(); }
 });
 
 // ---------- state ----------
