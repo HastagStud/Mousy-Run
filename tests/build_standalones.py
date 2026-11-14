@@ -146,6 +146,14 @@ function showTrain(){
   if (trainFrame) trainFrame.style.display = 'block';
   if (homeBtn) homeBtn.style.display = 'block';
   homeView = 'train';
+  // Flash the training ground's '?' on every entry (Jack 2026-11-13):
+  // the iframe is only loaded once, so its own load flash covers
+  // just the first entry. On later entries the frame is already up,
+  // so ask it to flash again. Guarded: on the very first entry the
+  // frame may not have loaded yet, and its own load flash covers it.
+  try {
+    if (trainFrame && trainFrame.contentWindow && typeof trainFrame.contentWindow.flashHelp === 'function') trainFrame.contentWindow.flashHelp();
+  } catch (e){}
 }
 function showHome(){
   if (endlessFrame) endlessFrame.style.display = 'none';

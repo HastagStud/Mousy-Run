@@ -24,6 +24,17 @@
     width:44px; height:44px; border-radius:50%;
     border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     font-size:20px; font-weight:700; padding:0; }
+  /* Help flash (Jack 2026-11-13): the '?' is the guide to the
+     training ground, so it flashes every time the player enters —
+     a few orange ring pulses that draw the eye without blocking
+     play. Triggered by flashHelp(); the class is removed when the
+     animation ends so the next entry can flash it again. */
+  @keyframes helpFlash {
+    0% { box-shadow:0 0 0 0 rgba(255,122,26,.75); transform:scale(1); }
+    50% { box-shadow:0 0 0 14px rgba(255,122,26,0); transform:scale(1.14); }
+    100% { box-shadow:0 0 0 0 rgba(255,122,26,0); transform:scale(1); }
+  }
+  #helpBtn.flash { animation:helpFlash .55s ease-out 3; }
   #helpModal { position:fixed; inset:0; background:rgba(60,45,20,.45);
     display:none; z-index:20; overflow-y:auto; }
   #helpCard { background:#fffdf6; border:2px solid #c9b896; border-radius:16px;
@@ -448,10 +459,31 @@ function closeHelp(){
   helpOpen = false;
   if (helpModal) helpModal.style.display = 'none';
 }
+// Flash the '?' so a player entering the training ground notices
+// it is the guide (Jack 2026-11-13). Re-triggerable: the class is
+// removed when the animation ends, so the next entry flashes again.
+// The homescreen calls this on every Guide tap (the iframe is only
+// loaded once, so a load-only flash would miss later entries); the
+// standalone training page flashes on its own load, below.
+function flashHelp(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const btn = document.getElementById('helpBtn');
+  if (!btn || !btn.classList) return;
+  btn.classList.remove('flash');
+  // force a reflow so re-adding the class restarts the animation
+  void btn.offsetWidth;
+  btn.classList.add('flash');
+}
+if (typeof window !== 'undefined') window.flashHelp = flashHelp;
 (function wireHelpUI(){
   if (typeof document === 'undefined' || !document.getElementById) return;
   const btn = document.getElementById('helpBtn');
   if (btn && btn.addEventListener) btn.addEventListener('click', openHelp);
+  // drop the flash class when the animation ends, so the next
+  // entry can flash it again; also flash once on this load (the
+  // standalone page, and the first iframe load from the homescreen)
+  if (btn && btn.addEventListener) btn.addEventListener('animationend', function(){ btn.classList.remove('flash'); });
+  flashHelp();
   const close = document.getElementById('helpClose');
   if (close && close.addEventListener) close.addEventListener('click', closeHelp);
   const gotIt = document.getElementById('helpGotIt');
@@ -1724,7 +1756,7 @@ globalThis.__mvpTest = {
   get helpOpen(){ return helpOpen; },
   get capDrawn(){ return capDrawn; },
   QA_TOOLS,
-  openHelp, closeHelp,
+  openHelp, closeHelp, flashHelp,
   keptLineWillLand, lineWillLand, segNodeConnected,
   clearKept,
 };

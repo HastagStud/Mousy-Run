@@ -9,13 +9,20 @@ const vm = require('vm');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const src = html.match(/<script>([\s\S]*)<\/script>/)[1];
 let fakeNow = 1000;
-const el = () => ({
-  style: {}, addEventListener(){}, getContext(){
-    return new Proxy({}, { get(t, p){ if (p === 'canvas') return {}; if (p === 'createLinearGradient') return () => ({ addColorStop(){} }); return () => {}; },
-      set(){ return true; } });
-  },
-  width: 0, height: 0, value: '', textContent: '',
-});
+const el = () => {
+  const classes = new Set();
+  return {
+    style: {}, addEventListener(){}, getContext(){
+      return new Proxy({}, { get(t, p){ if (p === 'canvas') return {}; if (p === 'createLinearGradient') return () => ({ addColorStop(){} }); return () => {}; },
+        set(){ return true; } });
+    },
+    width: 0, height: 0, value: '', textContent: '',
+    // classList stub (Jack 2026-11-13, help flash): tracks classes so
+    // the flash test can read them back
+    classList: { add(c){ classes.add(c); }, remove(c){ classes.delete(c); }, contains(c){ return classes.has(c); } },
+    offsetWidth: 44,
+  };
+};
 // elements are singletons per id, so tests can read back a style
 // the game set (e.g. the QA_TOOLS hiding of the LOG button)
 const elements = {};
@@ -431,5 +438,21 @@ release();
   const helpBtn = sandbox.document.getElementById('helpBtn');
   assert(helpBtn.style.display !== 'none', 'QA: training "?" must show (it is not a QA tool)');
   console.log('ok: QA off hides the training LOG, "?" still shows');
+}
+// Help flash (Jack 2026-11-13): the "?" is the guide to the training
+// ground, so it flashes every time the player enters. flashHelp()
+// adds the flash class (the load already flashed once, so the class
+// may or may not be present here — the point is that calling it
+// re-flashes, and that the class can be cleared for the next entry).
+{
+  const helpBtn = sandbox.document.getElementById('helpBtn');
+  T.flashHelp();
+  assert(helpBtn.classList.contains('flash'), 'flash: flashHelp must add the flash class to the "?" button');
+  // simulate the animation ending, then flash again: the class must
+  // be re-addable, so every entry can flash it
+  helpBtn.classList.remove('flash');
+  T.flashHelp();
+  assert(helpBtn.classList.contains('flash'), 'flash: flashHelp must re-flash after the class is cleared');
+  console.log('ok: "?" flashes on entry and re-flashes for the next entry');
 }
 console.log(process.exitCode ? 'MVP CHECKS FAILED' : 'ALL MVP CHECKS PASSED');

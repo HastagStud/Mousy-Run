@@ -63,10 +63,17 @@ assert(runScripts(sandbox, html) === 1, 'home.html must have exactly one script 
 const T = sandbox.__homeTest, S = T.S;
 function tick(){ fakeNow += 16; sandbox.tick(fakeNow); }
 
-// 1. links: PLAY -> endless, Train -> training ground (editable hrefs)
+// 1. links: PLAY -> endless, Guide -> training ground (editable hrefs)
 assert(html.includes('href="endless.html"'), 'home: PLAY must link to endless.html');
-assert(html.includes('href="index.html"'), 'home: Train must link to index.html');
+assert(html.includes('href="index.html"'), 'home: Guide must link to index.html');
 assert(!html.includes('id="reset"') && !html.includes('id="logBtn"'), 'home: no Reset/LOG chrome on the homescreen');
+// Guide label (Jack 2026-11-13): the first user did not realise
+// "Train" was a tutorial, so the button now reads GUIDE — and the
+// button size must not change: .homeBtn keeps its fixed 58cqw width,
+// so the label is just centred text inside a fixed pill.
+assert(html.includes('>GUIDE<'), 'home: the tutorial button must read GUIDE');
+assert(!html.includes('>TRAIN<'), 'home: the tutorial button must not still read TRAIN');
+assert(/\.homeBtn\s*\{[^}]*width:58cqw/.test(html), 'home: .homeBtn must keep its fixed 58cqw width, so GUIDE does not resize the button');
 // 2. the demo climbs rows by the game's own logic
 let climbed = false;
 for (let i = 0; i < 4000 && !climbed; i++){ tick(); if (T.bestRow >= 4) climbed = true; }
@@ -148,10 +155,16 @@ assert(H.view === 'home', 'home standalone: Home must return to the homescreen, 
 assert(H.endlessFrame.style.display === 'none', 'home standalone: Home must hide the endless frame');
 assert(H.homeBtn.style.display === 'none', 'home standalone: Home button must hide on the homescreen');
 assert(H.bestShown === 42, 'home standalone: returning Home must re-read the best score, got ' + H.bestShown);
-// Train switches to the training-ground view and it runs too
+// Guide switches to the training-ground view and it runs too
 H.showTrain();
-assert(H.view === 'train', 'home standalone: Train must switch to the training view, got ' + H.view);
-assert(H.trainLoaded === true, 'home standalone: Train must load the training ground');
+assert(H.view === 'train', 'home standalone: Guide must switch to the training view, got ' + H.view);
+assert(H.trainLoaded === true, 'home standalone: Guide must load the training ground');
+// Help flash on every Guide entry (Jack 2026-11-13): the training
+// iframe loads once, so showTrain must ask it to flash the "?" again
+// on later entries (the first entry is covered by the frame's own load)
+const standaloneSrc = fs.readFileSync(path.join(__dirname, '..', 'mouse-game-home-play.html'), 'utf8');
+assert(standaloneSrc.includes('contentWindow.flashHelp'), 'home standalone: showTrain must call the training frame\'s flashHelp on every Guide entry');
+assert(H.trainFrame.srcdoc.includes('flashHelp'), 'home standalone: embedded training ground must carry flashHelp');
 assert(typeof H.trainFrame.srcdoc === 'string' && H.trainFrame.srcdoc.includes('Training Ground'),
   'home standalone: train frame must hold the training ground');
 const sbTrain = runGameDoc(H.trainFrame.srcdoc, '__mvpTest');

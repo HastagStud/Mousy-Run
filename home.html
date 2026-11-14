@@ -17,7 +17,7 @@
      best score and buttons read clearly over the moving demo.
      It sits above the canvas (z-index 4) and below the UI (5),
      and it blocks taps reaching the canvas (the demo is
-     autonomous; the only controls are PLAY and Train). */
+     autonomous; the only controls are PLAY and Guide). */
   #veil { position:fixed; inset:0; background:rgba(255,255,255,.48); z-index:4; }
   /* Title (mockup 1's title, Jack 2026-11-06): Luckiest Guy,
      bright gold gradient with a dark brown outline and a soft
@@ -34,9 +34,9 @@
   #bestPill { display:inline-block; font-family:'Luckiest Guy','Arial Black',sans-serif;
     font-size:20px; color:#7A4A00; background:rgba(255,248,234,.92);
     border:1px solid #c9b896; border-radius:999px; padding:5px 16px; }
-  /* PLAY and Train, centered on screen (Jack 2026-11-06): the
+  /* PLAY and Guide, centered on screen (Jack 2026-11-06): the
      same 58cqw-wide pill, same padding, same border and shadow.
-     PLAY is the orange gradient; Train is a very light shade of
+     PLAY is the orange gradient; Guide is a very light shade of
      Play's orange. Both white font. */
   #homeBtns { position:fixed; left:0; right:0; top:50%; transform:translateY(-50%);
     z-index:5; display:flex; flex-direction:column; align-items:center; gap:16px;
@@ -56,7 +56,7 @@
 <div id="best"><span id="bestPill">BEST <span id="bestNum">0</span></span></div>
 <div id="homeBtns">
   <a class="homeBtn play" href="endless.html">PLAY</a>
-  <a class="homeBtn train" href="index.html">TRAIN</a>
+  <a class="homeBtn train" href="index.html">GUIDE</a>
 </div>
 <script>
 "use strict";
@@ -64,7 +64,7 @@
 // ============================================================
 // MOUSY RUN — HOMESCREEN (2026-11-06, Jack's pick: Living
 // World, mockup 5, as revised — big gold title, best score
-// under it, PLAY and Train centered over the living world).
+// under it, PLAY and Guide centered over the living world).
 //
 // The world behind the UI is the ENDLESS engine itself, in
 // demo/attract mode: the mouse climbs the endless rows by the
@@ -77,7 +77,7 @@
 // He climbs until he disappears into the top, then re-emerges
 // from the bottom and continues in a loop.
 //
-// PLAY goes to the endless game, Train to the training ground.
+// PLAY goes to the endless game, Guide to the training ground.
 // The best score (localStorage 'mousyRunBest', written by the
 // endless game on death) sits under the title. The world is
 // washed with a white translucent veil, not darkened; there is
