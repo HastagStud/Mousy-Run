@@ -67,10 +67,15 @@ const toGround = () => { S.surface = { type: 'ground' }; S.x = 200; S.y = T.grou
 }
 // K5: a kept line whose far end only drops back onto its embark
 // platform stays amber (lands somewhere NEW is still required)
+// (Shifted up 50px for the 50px ad strip, Jack 2026-11-16: the
+// ground is now at 750, so the old line from y=700 sat within the
+// ground's 54px touch band and the ground counted as a second
+// anchor — from which the drop onto the embark platform reads as
+// new. The shifted line keeps the same shape, out of the band.)
 {
-  const origin = { x1: 0, x2: 390, y: 700, row: 1 };
+  const origin = { x1: 0, x2: 390, y: 650, row: 1 };
   setWorld([origin], 100);
-  press(100, 700); move(200, 600); release();
+  press(100, 650); move(200, 550); release();
   assert(S.keptSeg && S.keptSeg.ax === 100 && S.keptSeg.bx === 200, 'K5: line must be kept as drawn, got ' + JSON.stringify(S.keptSeg));
   assert(!T.keptLineWillLand(S.keptSeg), 'K5: a drop-back onto the embark platform must be amber');
   console.log('[K5] drop-back onto the embark platform stays amber: OK');

@@ -175,4 +175,10 @@ const sbTrain = runGameDoc(H.trainFrame.srcdoc, '__mvpTest');
 }
 H.showHome();
 assert(H.view === 'home', 'home standalone: Home must return from the training view too');
+// Ad strip (Jack 2026-11-16): reserved 50px banner space at the bottom.
+assert(html.includes('id="adStrip"') && html.includes('id="adSlot"'), 'home: must have #adStrip + #adSlot');
+assert(T.AD_STRIP_H === 50, 'home: AD_STRIP_H must be 50, got ' + T.AD_STRIP_H);
+assert(T.getH() === 794, 'home: demo game height must be 844 - 50 = 794, got ' + T.getH());
+assert(H.endlessFrame.srcdoc.includes('id="adStrip"'), 'home standalone: embedded endless game must carry the ad strip');
+assert(H.trainFrame.srcdoc.includes('id="adStrip"'), 'home standalone: embedded training ground must carry the ad strip');
 console.log(process.exitCode ? 'HOME CHECKS FAILED' : 'ALL HOME CHECKS PASSED');

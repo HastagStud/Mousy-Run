@@ -27,7 +27,7 @@ function run(plats, a, b) {
 {
   const short = { x1: 0, x2: 120, y: 700 };
   const landed = run([short], [100, 700], [200, 560]);
-  assert(landed && landed.type === 'ground' && S.y === 800, 'P3: open-air far end must fall to the ground');
+  assert(landed && landed.type === 'ground' && S.y === 750, 'P3: open-air far end must fall to the ground');
   console.log('[P3] far end over open air falls normally to the ground: OK');
 }
 console.log('ALL DROP TESTS PASSED');

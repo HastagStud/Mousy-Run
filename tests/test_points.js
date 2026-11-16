@@ -56,8 +56,8 @@ const pointLogs = () => T.log.filter(l => l.includes('POINT'));
 {
   const g2 = loadGame();
   const S2 = g2.S, T2 = g2.T;
-  g2.setWorld([{ x1: 0, x2: 390, y: 800 }, { x1: 0, x2: 390, y: 608, row: 1 }], 100);
-  g2.press(150, 800); g2.move(300, 608); g2.release();
+  g2.setWorld([{ x1: 0, x2: 390, y: 750 }, { x1: 0, x2: 390, y: 558, row: 1 }], 100);
+  g2.press(150, 750); g2.move(300, 558); g2.release();
   const landed = g2.settle();
   assert(landed && landed.row === 1, 'P5: must land on row 1');
   assert(T2.points === 1, 'P5: real climb to row 1 must earn 1 point, got ' + T2.points);

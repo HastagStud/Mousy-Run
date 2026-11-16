@@ -12,7 +12,7 @@ const upper = { x1: 0, x2: 390, y: 550 };
 {
   setWorld([lower, upper], 100); press(150, 700); move(300, 550);
   tick();
-  has('START endless 390x844');
+  has('START endless 390x794');
   has('PRESS at=(150,700)');
   release();
   has('RELEASE kept=(150,700)-(300,550) green=true');

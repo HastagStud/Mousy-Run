@@ -29,7 +29,7 @@ const TM = sandbox.__mvpTest, SM = TM.S;
 
 const assert = (c, m) => { if (!c){ console.error('FAIL:', m); process.exit(1); } };
 
-// same world in both: two rows, one gap each, 192 apart; ground at 800
+// same world in both: two rows, one gap each, 192 apart; ground at 750 (50px ad strip, Jack 2026-11-16)
 const WORLD = [
   { x1: 0, x2: 150, y: 700 },
   { x1: 250, x2: 390, y: 700 },

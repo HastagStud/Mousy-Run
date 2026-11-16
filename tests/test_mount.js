@@ -109,13 +109,14 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 // from the platform edge and the ground that no lock anchors it
 // (a press within 64px of the ground would lock the start to the
 // ground and turn it into a ground ramp he could mount after
-// landing). (220,730) is 76px from the platform edge and 70px
+// landing). (220,680) is 70px from the platform edge and 70px
 // above the ground, and the line stays above the ground's touch
-// band, so it touches nothing.
+// band, so it touches nothing. (Shifted up 50px for the 50px ad
+// strip, Jack 2026-11-16: ground is now at 750, not 800.)
 {
-  const lower = { x1: 0, x2: 150, y: 700 };
+  const lower = { x1: 0, x2: 150, y: 650 };
   setWorld([lower], 50);
-  press(220, 730); move(320, 690);
+  press(220, 680); move(320, 640);
   let everFinger = false, everFall = false;
   for (let i = 0; i < 400; i++) {
     tick();
@@ -132,11 +133,12 @@ const { sandbox, T, S, assert, tick, press, move, release, setWorld, settle } = 
 // 2026-11-05, helping hand reverted) and falls through to the
 // ground, because the lock only anchors near presses. The press
 // is placed like M5's so the line stays unconnected (far from
-// the platform edge and the ground, touching nothing).
+// the platform edge and the ground, touching nothing). (Shifted up
+// 50px for the 50px ad strip, Jack 2026-11-16: ground at 750.)
 {
-  const lower = { x1: 0, x2: 150, y: 700 };
+  const lower = { x1: 0, x2: 150, y: 650 };
   setWorld([lower], 50);
-  press(250, 730); move(320, 690);
+  press(250, 680); move(320, 640);
   let everFinger = false, everFall = false;
   for (let i = 0; i < 400; i++) {
     tick();

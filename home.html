@@ -11,7 +11,17 @@
   html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#eaf6ff;
     font-family:-apple-system, system-ui, sans-serif; touch-action:none;
     -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
-  #game { position:fixed; inset:0; display:block; }
+  #game { position:fixed; left:0; top:0; display:block; }
+  /* Reserved banner-ad strip (Jack 2026-11-16, launch config: bottom
+     banner, Flappy model). The play area above shrinks by this height
+     (H = innerHeight - AD_STRIP_H) so the game is built around the
+     reserved space, never covered by it. Empty until AdSense H5 Games
+     Ads is approved — the AdSense ad unit goes inside #adSlot then.
+     Nothing fake lives here: no placeholder creative, no "Ad" label. */
+  #adStrip { position:fixed; left:0; right:0; bottom:0; height:50px;
+    background:#fff; border-top:1px solid #d8e2ea; display:flex;
+    align-items:center; justify-content:center; z-index:5; }
+  #adSlot { width:320px; max-width:100%; height:50px; }
   /* White veil (Jack 2026-11-06): the living world sits behind a
      soft translucent white wash — not darkened — so the title,
      best score and buttons read clearly over the moving demo.
@@ -51,6 +61,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="adStrip"><div id="adSlot"><!-- AdSense H5 Games Ads unit goes here once approved; empty until then. --></div></div>
 <div id="veil"></div>
 <div id="title"><span id="titleText">MOUSY RUN</span></div>
 <div id="best"><span id="bestPill">BEST <span id="bestNum">0</span></span></div>
@@ -112,7 +123,12 @@ Object.values(SPRITES).flat().forEach(src => { const i = new Image(); i.src = sr
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-let W = innerWidth, H = innerHeight;
+// Reserved banner-ad strip (Jack 2026-11-16, launch config: bottom
+// banner, Flappy model — the game is built around the reserved space).
+// The play area is the viewport minus this strip; AdSense H5 Games Ads
+// fills #adSlot once approved. Until then the strip stays empty.
+const AD_STRIP_H = 50;
+let W = innerWidth, H = innerHeight - AD_STRIP_H;
 function fitCanvas(){
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -312,7 +328,7 @@ addEventListener('resize', () => {
   // showing when Jack taps the screen — rebuilding there regenerates
   // every platform at random, so the platforms visibly jump. A height
   // change just resizes the canvas; the world stays put.
-  const newW = innerWidth, newH = innerHeight;
+  const newW = innerWidth, newH = innerHeight - AD_STRIP_H;
   if (newW !== W){ W = newW; H = newH; buildWorld(); fitCanvas(); demoReset(); }
   else { H = newH; fitCanvas(); }
 });
@@ -1918,7 +1934,7 @@ globalThis.__homeTest = {
   get demoPair(){ return demoPair; },
   get log(){ return LOG; },
   get CFG(){ return CFG; },
-  getW: () => W, getH: () => H,
+  getW: () => W, getH: () => H, AD_STRIP_H,
   keptLineWillLand, lineWillLand,
 };
 requestAnimationFrame(tick);

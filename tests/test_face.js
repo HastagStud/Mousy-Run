@@ -25,7 +25,7 @@ const target = { x1: 150, x2: 300, y: 550 };
   setWorld([origin, target], 50);
   press(100, 500); move(200, 580);
   const landed = settle();
-  assert(landed && landed.type === 'ground' && S.y === 800, 'F4: below-face line must fall to the ground');
+  assert(landed && landed.type === 'ground' && S.y === 750, 'F4: below-face line must fall to the ground');
   console.log('[F4] downward line ending below the face falls to the ground: OK');
 }
 console.log('ALL FACE TESTS PASSED');

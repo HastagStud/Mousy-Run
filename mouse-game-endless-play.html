@@ -11,7 +11,17 @@
   html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#eaf6ff;
     font-family:-apple-system, system-ui, sans-serif; touch-action:none;
     -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
-  #game { position:fixed; inset:0; display:block; }
+  #game { position:fixed; left:0; top:0; display:block; }
+  /* Reserved banner-ad strip (Jack 2026-11-16, launch config: bottom
+     banner, Flappy model). The play area above shrinks by this height
+     (H = innerHeight - AD_STRIP_H) so the game is built around the
+     reserved space, never covered by it. Empty until AdSense H5 Games
+     Ads is approved — the AdSense ad unit goes inside #adSlot then.
+     Nothing fake lives here: no placeholder creative, no "Ad" label. */
+  #adStrip { position:fixed; left:0; right:0; bottom:0; height:50px;
+    background:#fff; border-top:1px solid #d8e2ea; display:flex;
+    align-items:center; justify-content:center; z-index:5; }
+  #adSlot { width:320px; max-width:100%; height:50px; }
   /* Points (Jack 2026-11-06): big top-center number, Flappy-style.
      Luckiest Guy, bright gold gradient with a dark brown outline and
      a soft drop shadow; falls back to Arial Black with no network.
@@ -89,6 +99,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="adStrip"><div id="adSlot"><!-- AdSense H5 Games Ads unit goes here once approved; empty until then. --></div></div>
 <div id="points"><span id="pointsNum">0</span></div>
 <button id="reset" type="button">Reset</button>
 <button id="homeIcon" type="button" aria-label="Home"><svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true"><circle cx="47" cy="6" r="3.5" fill="#fff" stroke="#5a4632" stroke-width="1.5"/><rect x="43" y="10" width="8" height="14" rx="2" fill="#c96f2e" stroke="#5a4632" stroke-width="2.5"/><path d="M4 34 L32 12 L60 34 Z" fill="#ff8c42" stroke="#5a4632" stroke-width="3" stroke-linejoin="round"/><rect x="14" y="34" width="36" height="22" rx="3" fill="#ffe9a8" stroke="#5a4632" stroke-width="3"/><path d="M28 56 V46 Q28 40 32 40 Q36 40 36 46 V56 Z" fill="#8b5a2b" stroke="#5a4632" stroke-width="2"/><circle cx="34" cy="49" r="1.3" fill="#ffe9a8"/><circle cx="21" cy="43" r="4.5" fill="#a8d8ea" stroke="#5a4632" stroke-width="2"/><circle cx="43" cy="43" r="4.5" fill="#a8d8ea" stroke="#5a4632" stroke-width="2"/></svg></button>
@@ -219,7 +230,12 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const banner = document.getElementById('banner');
 
-let W = innerWidth, H = innerHeight;
+// Reserved banner-ad strip (Jack 2026-11-16, launch config: bottom
+// banner, Flappy model — the game is built around the reserved space).
+// The play area is the viewport minus this strip; AdSense H5 Games Ads
+// fills #adSlot once approved. Until then the strip stays empty.
+const AD_STRIP_H = 50;
+let W = innerWidth, H = innerHeight - AD_STRIP_H;
 function fitCanvas(){
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -553,7 +569,7 @@ addEventListener('resize', () => {
   // showing when Jack taps the screen — rebuilding there regenerates
   // every platform at random, so the platforms visibly jump. A height
   // change just resizes the canvas; the world stays put.
-  const newW = innerWidth, newH = innerHeight;
+  const newW = innerWidth, newH = innerHeight - AD_STRIP_H;
   if (newW !== W){ W = newW; H = newH; buildWorld(); fitCanvas(); reset(); }
   else { H = newH; fitCanvas(); }
 });
@@ -2316,7 +2332,7 @@ globalThis.__endlessTest = { genRowGaps, worstTravel, genRow, pushRow, buildWorl
   get rows(){ return rows; }, get platforms(){ return platforms; },
   get S(){ return S; }, get scrolling(){ return scrolling; }, get log(){ return LOG; },
   get groundY(){ return groundY; }, get bestRow(){ return bestRow; }, get points(){ return points; }, get clouds(){ return clouds; },
-  CFG, getW: () => W, getH: () => H };
+  CFG, getW: () => W, getH: () => H, AD_STRIP_H };
 requestAnimationFrame(tick);
 </script>
 </body>

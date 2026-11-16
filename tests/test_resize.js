@@ -16,17 +16,20 @@ const before = sig(T.platforms);
 const startX = S.x, startY = S.y;
 
 // [1] Height-only resize (URL bar hides: 844 -> 700). Platforms must NOT move.
+// The game area is the viewport minus the 50px ad strip, so H goes 794 -> 650.
 sandbox.innerHeight = 700;
 fireWindow('resize');
 assert(sig(T.platforms) === before, 'resize: height-only resize must NOT rebuild the platforms');
 assert(S.x === startX && S.y === startY, 'resize: height-only resize must NOT reset the mouse');
 assert(sandbox.innerHeight === 700, 'resize: H must update to the new height');
+assert(T.getH() === 650, 'resize: game height must be innerHeight - 50, got ' + T.getH());
 console.log('[1] height-only resize: platforms unchanged, mouse not reset: OK');
 
 // [2] Height-only resize back (URL bar shows: 700 -> 844). Still no rebuild.
 sandbox.innerHeight = 844;
 fireWindow('resize');
 assert(sig(T.platforms) === before, 'resize: height-only resize back must NOT rebuild the platforms');
+assert(T.getH() === 794, 'resize: game height must be back to 844 - 50, got ' + T.getH());
 console.log('[2] height-only resize back: platforms unchanged: OK');
 
 // [3] Width change (orientation: 390 -> 500). The world rebuilds.

@@ -119,12 +119,13 @@ press(205, 695); move(100, 600);
 s = seg();
 assert(s && s.ax === 200 && s.ay === 707, 'V6 node beats start lock: ' + segStr(s));
 release();
-// V7: B snap function unit
-setWorld(PLATS, 150, 800, 1);
-S.surface = GROUND; S.y = 800;
-const crafted = { ax: 150, ay: 790, bx: 210, by: 690, len: Math.hypot(60, 100) };
+// V7: B snap function unit (ground at 750 since the 50px ad strip,
+// Jack 2026-11-16)
+setWorld(PLATS, 150, 750, 1);
+S.surface = GROUND; S.y = 750;
+const crafted = { ax: 150, ay: 740, bx: 210, by: 690, len: Math.hypot(60, 100) };
 const snapped = sandbox.snapLive(crafted);
-assert(snapped && snapped.ax === 150 && snapped.ay === 800 && snapped.bx === 200 && snapped.by === 700, 'V7 snapLive snaps start to ground + far to row1 edge: ' + (snapped ? segStr(snapped) : 'null'));
+assert(snapped && snapped.ax === 150 && snapped.ay === 750 && snapped.bx === 200 && snapped.by === 700, 'V7 snapLive snaps start to ground + far to row1 edge: ' + (snapped ? segStr(snapped) : 'null'));
 // V8: onward green
 setWorld(PLATS, 150, 700, 1);
 press(100, 680); move(320, 600);
@@ -455,4 +456,10 @@ release();
   assert(helpBtn.classList.contains('flash'), 'flash: flashHelp must re-flash after the class is cleared');
   console.log('ok: "?" flashes on entry and re-flashes for the next entry');
 }
+// Ad strip (Jack 2026-11-16): reserved 50px banner space at the bottom.
+assert(T.AD_STRIP_H === 50, 'adstrip: AD_STRIP_H must be 50, got ' + T.AD_STRIP_H);
+assert(T.H === 794, 'adstrip: training game height must be 844 - 50 = 794, got ' + T.H);
+assert(T.W === 390, 'adstrip: training game width must stay 390, got ' + T.W);
+assert(html.includes('id="adStrip"') && html.includes('id="adSlot"'), 'adstrip: training must have #adStrip + #adSlot');
+console.log('ok: ad strip reserved (50px, game area 390x794)');
 console.log(process.exitCode ? 'MVP CHECKS FAILED' : 'ALL MVP CHECKS PASSED');

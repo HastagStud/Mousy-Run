@@ -33,14 +33,18 @@ const upper = { x1: 250, x2: 390, y: 550 };
 }
 // S3: start end nowhere near his platform -> B does not snap
 // the start. Updated 2026-11-02 (Jack: any line's far end
-// snaps into a node): the finger (260,560) is within 28px of
-// the node (250,557), so the far end DOES node-snap even
+// snaps into a node): the finger (260,510) is within 28px of
+// the node (250,507), so the far end DOES node-snap even
 // though B stays off and the start stays raw at the press.
+// (Shifted up 50px for the 50px ad strip, Jack 2026-11-16: the
+// ground is now at 750, so the old press at y=700 locked its
+// start to the ground.)
 {
-  const short = { x1: 0, x2: 150, y: 700 };
-  setWorld([short, upper], 50); press(300, 700); move(260, 560);
+  const short = { x1: 0, x2: 150, y: 650 };
+  const upperUp = { x1: 250, x2: 390, y: 500 };
+  setWorld([short, upperUp], 50); press(300, 650); move(260, 510);
   const seg = sandbox.fingerSegment();
-  assert(segEq(seg, 300, 700, 250, 557), 'S3: start must stay raw but far end must node-snap, got ' + JSON.stringify(seg));
+  assert(segEq(seg, 300, 650, 250, 507), 'S3: start must stay raw but far end must node-snap, got ' + JSON.stringify(seg));
   console.log('[S3] start end out of radius stays raw, far end still node-snaps: OK');
 }
 // S4: snapped line too steep to climb -> B rejects it, and the
@@ -133,10 +137,10 @@ const upper = { x1: 250, x2: 390, y: 550 };
 // finger (260,560) is near both the B edge (250,550) and the
 // node (250,557), so the far end is the node now.
 {
-  setWorld([upper], 100); S.surface = { type: 'ground' }; S.y = 800;
-  press(100, 810); move(260, 560);
+  setWorld([upper], 100); S.surface = { type: 'ground' }; S.y = 750;
+  press(100, 760); move(260, 560);
   const seg = sandbox.fingerSegment();
-  assert(segEq(seg, 100, 800, 250, 557), 'S7: must snap from ground, got ' + JSON.stringify(seg));
+  assert(segEq(seg, 100, 750, 250, 557), 'S7: must snap from ground, got ' + JSON.stringify(seg));
   console.log('[S7] ground anchor snaps: OK');
 }
 // S10: the locked start rides the world and never disengages —

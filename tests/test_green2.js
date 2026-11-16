@@ -58,9 +58,14 @@ console.log('[R1] floating line above mount reach is not green: OK');
   console.log('[R7] mid-segment mount within reach is green: OK');
 }
 // R8: line below mount reach -> amber
+// (Shifted up 50px for the 50px ad strip, Jack 2026-11-16: the ground
+// is now at 750, so the old press at y=780 locked its start to the
+// ground at (100,750) — 50px below his platform, inside mount reach.
+// The shifted line keeps the same shape relative to his platform.)
 {
-  const upLow = { x1: 250, x2: 390, y: 770 };
-  assert(drawLine([lower, upLow], 100, [100, 780], [300, 770]) === false, 'R8');
+  const upLow = { x1: 250, x2: 390, y: 720 };
+  const lowerUp = { x1: 0, x2: 390, y: 650 };
+  assert(drawLine([lowerUp, upLow], 100, [100, 730], [300, 720]) === false, 'R8');
   console.log('[R8] line below mount reach is not green: OK');
 }
 console.log('ALL REACHABILITY TESTS PASSED');

@@ -38,9 +38,11 @@ const { T, S, assert, tick, press, move, release, setWorld, settle } = loadGame(
 }
 
 // C4: clouds never touch gameplay — a real climb still lands.
+// (Shifted up 50px for the 50px ad strip, Jack 2026-11-16: ground
+// platform at 750, row 1 at 558 — same 192 spacing.)
 {
-  setWorld([{ x1: 0, x2: 390, y: 800 }, { x1: 0, x2: 390, y: 608, row: 1 }], 100);
-  press(150, 800); move(300, 608); release();
+  setWorld([{ x1: 0, x2: 390, y: 750 }, { x1: 0, x2: 390, y: 558, row: 1 }], 100);
+  press(150, 750); move(300, 558); release();
   const landed = settle();
   assert(landed && landed.row === 1, 'C4: climb must still land on row 1 with clouds present');
   console.log('[C4] gameplay unaffected by clouds: OK');
