@@ -6,13 +6,17 @@
 <title>Mousy Run</title>
 <!-- Home-screen icon (Jack 2026-11-16): pinning the site from Safari
      shows the thumbnail as the icon. iOS reads a single 180x180
-     opaque PNG — the link below points at it, and the title meta
+     opaque PNG — the links below point at it, and the title meta
      names the pin. The file is docs/IMG_0036.png (the name the
-     upload landed with); the href must match it exactly. iOS would
-     also find apple-touch-icon.png by default, but the explicit
-     link here is what matters — it works with any filename. -->
-<link rel="apple-touch-icon" href="/IMG_0036.png">
-<link rel="icon" type="image/png" href="/IMG_0036.png">
+     upload landed with); the href must match it exactly. The hrefs
+     are RELATIVE on purpose (no leading /): this is a project
+     Pages site, so it lives under /Mousy-Run/, and a leading /
+     would point at hastagstud.github.io/IMG_0036.png — the domain
+     root — which 404s. (Same reason the apple-touch-icon.png
+     default lookup can never work here: iOS checks the domain
+     root, not the repo folder.) -->
+<link rel="apple-touch-icon" href="IMG_0036.png">
+<link rel="icon" type="image/png" href="IMG_0036.png">
 <meta name="apple-mobile-web-app-title" content="Mousy Run">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
