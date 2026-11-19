@@ -45,6 +45,31 @@
     width:44px; height:44px; border-radius:50%;
     border:1px solid #c9b896; background:#fff8ea; color:#5a4632;
     font-size:20px; font-weight:700; padding:0; }
+  /* Sound toggle (Jack 2026-11-18): a round cream button mirroring
+     the help button, top-right. Toggles the Web Audio effects on/off. */
+  #soundBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px;
+    width:44px; height:44px; padding:0; box-sizing:border-box;
+    border:1px solid #c9b896; background:#fff8ea; border-radius:999px;
+    font-size:22px; line-height:44px; text-align:center; cursor:pointer; }
+  /* "Get Ready" modal (Jack 2026-11-18): a canvas drag doesn't count as
+     the audio-unlock gesture in this viewer — only a button press does.
+     So the training ground opens behind a Get Ready card and the player
+     taps GO! to start; that tap unlocks the sound, and the mount blip
+     follows. No dimming — the card floats over the fully visible world. */
+  #readyModal { position:fixed; inset:0; z-index:50; display:flex;
+    align-items:center; justify-content:center; }
+  #readyModal .readyCard { text-align:center; background:rgba(255,248,234,.97);
+    border:2px solid #e3b93c; border-radius:20px; padding:28px 36px;
+    box-shadow:0 12px 40px rgba(0,0,0,.35); }
+  #readyModal h1 { font-family:'Luckiest Guy','Arial Black',sans-serif;
+    font-size:44px; color:#ffb300; margin:0 0 6px;
+    -webkit-text-stroke:1px #7a4a00; }
+  #readyModal p { color:#5a4632; margin:0 0 18px; font-size:16px; }
+  #goBtn { font-family:'Luckiest Guy','Arial Black',sans-serif; font-size:32px;
+    color:#fff; background:linear-gradient(180deg,#ff9a3d 0%,#ff7a1a 50%,#f26c00 100%);
+    border:2px solid #b85c00; border-radius:999px; padding:10px 44px;
+    cursor:pointer; box-shadow:0 4px 0 #b85c00; }
+  #goBtn:active { transform:translateY(2px); box-shadow:0 2px 0 #b85c00; }
   /* Help flash (Jack 2026-11-13): the '?' is the guide to the
      training ground, so it flashes every time the player enters —
      a few orange ring pulses that draw the eye without blocking
@@ -76,6 +101,8 @@
 <canvas id="game"></canvas>
 <div id="adStrip"><div id="adSlot"><!-- AdSense H5 Games Ads unit goes here once approved; empty until then. --></div></div>
 <button id="helpBtn" type="button" aria-label="What can I do?">?</button>
+<button id="soundBtn" type="button" aria-label="Toggle sound">🔊</button>
+<div id="readyModal"><div class="readyCard"><h1>Get Ready</h1><p>Draw a ramp to climb. Green is safe, amber is a gamble.</p><button id="goBtn" type="button">GO!</button></div></div>
 
 <button id="logBtn" type="button">LOG</button>
 <div id="logPanel"><textarea id="logText" readonly></textarea><div><button id="logCopy" type="button">Copy log</button><button id="logClose" type="button">Close</button><span id="logStatus"></span></div></div>
@@ -212,6 +239,132 @@ function fitCanvas(){
 // ---------- level ----------
 let groundY = 0, platforms = [];
 let clouds = []; // soft rounded clouds (endless parity, Jack 2026-11-06) — screen-space decoration, behind everything
+
+// ---------- sound (Jack 2026-11-18) ----------
+// Three tiny Web Audio effects, synthesized in code — no audio files, so
+// the standalone stays self-contained. The training ground has no score
+// or death, so only the mount blip plays here (sndScore/sndDeath are
+// included for parity with the endless game and are simply never called).
+// Browsers block sound until a user gesture, so the AudioContext is
+// created/resumed on the first tap. A canvas drag doesn't count as the
+// unlock gesture in this viewer (iOS WKWebView) — only a button press
+// does — so the game opens behind a Get Ready card and the player taps
+// GO! to start; that tap unlocks the sound. All calls are try/catch
+// guarded so a missing or blocked AudioContext can never break play.
+let sndCtx = null, sndOn = true, sndKeepAlive = false;
+function sndUnlock(){
+  if (!sndOn) return;
+  try {
+    // iOS routes Web Audio to the "ambient" (ringer) channel, which
+    // silent mode mutes — so the game can play with no sound at all
+    // even while the context runs. iOS 17+ lets the page ask for the
+    // "playback" (media) channel instead, like a music app, so the
+    // sounds play through silent mode. Must be set inside the gesture,
+    // before the context resumes; re-asserted on every tap because
+    // iOS can reset it after an interruption (e.g. a phone call).
+    // Feature-detected — a no-op everywhere else.
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  } catch (e){}
+  try {
+    if (!sndCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      sndCtx = new AC();
+    }
+    // Start the keep-alive only once the context is actually running.
+    // resume() is async — if we start the oscillator while suspended it
+    // never runs, and the flag would block a later start, so the engine
+    // falls back asleep before the mount. Wait for the resume promise
+    // when suspended; start immediately when already running. Gain is
+    // 0.001, not 0 — a gain-0 node can be optimized away, so it doesn't
+    // actually keep the engine awake; 0.001 is inaudible but forces the
+    // browser to keep rendering. Once only.
+    const startKeepAlive = function(){
+      if (sndKeepAlive || !sndCtx || sndCtx.state !== 'running') return;
+      sndKeepAlive = true;
+      try {
+        const o = sndCtx.createOscillator();
+        const g = sndCtx.createGain();
+        g.gain.value = 0.001;
+        o.connect(g); g.connect(sndCtx.destination);
+        o.start(0);
+      } catch (e){}
+    };
+    if (sndCtx.state === 'suspended'){
+      sndCtx.resume().then(startKeepAlive).catch(function(){});
+    } else {
+      startKeepAlive();
+    }
+  } catch (e){}
+}
+function sndTone(freq, dur, type, vol, slideTo, delay){
+  if (!sndOn || !sndCtx) return;
+  try {
+    // Don't drop the tone if the context is still suspended — resume it
+    // and schedule once it is actually running. resume() is async, so
+    // scheduling immediately at a frozen currentTime stamps the tone in
+    // the past and it never plays. Wait for the resume promise when
+    // suspended; schedule at once when already running.
+    const play = function(){
+      const t = sndCtx.currentTime + (delay || 0);
+      const o = sndCtx.createOscillator(), g = sndCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(vol || 0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(sndCtx.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    };
+    if (sndCtx.state === 'suspended'){
+      sndCtx.resume().then(play).catch(function(){});
+    } else {
+      play();
+    }
+  } catch (e){}
+}
+// Soft blip when he mounts a ramp.
+function sndMount(){ sndTone(660, 0.12, 'sine', 0.2); }
+// Bright two-note ding when a new row is scored (unused in training).
+function sndScore(){ sndTone(880, 0.15, 'sine', 0.3); sndTone(1318, 0.18, 'sine', 0.3, null, 0.1); }
+// Dull low thud on any death (unused in training — no death here).
+function sndDeath(){ sndTone(160, 0.3, 'triangle', 0.35, 55); }
+
+// Sound toggle: the 🔊/🔇 button top-right flips sndOn; the tones check
+// it before playing.
+(function(){
+  var btn = document.getElementById('soundBtn');
+  if (!btn || !btn.addEventListener) return;
+  btn.addEventListener('click', function(){
+    sndOn = !sndOn;
+    btn.textContent = sndOn ? '🔊' : '🔇';
+    // Audible confirmation when unmuting (the bright score ding) —
+    // tap twice (mute, then unmute) and the ding tells you the game's
+    // audio is working. The short delay lets the context resume first.
+    if (sndOn){ sndUnlock(); setTimeout(function(){ sndScore(); }, 120); }
+  });
+})();
+
+// "Get Ready" modal (Jack 2026-11-18): a canvas drag doesn't count as the
+// audio-unlock gesture in this viewer — only a button press does. So the
+// training ground opens behind a Get Ready card; tapping GO! is a real
+// button click, which unlocks the sound and plays the ding to confirm
+// it, then the modal goes away and the player draws. Guarded like the
+// sound button so the test harness (no real DOM) is unaffected.
+(function(){
+  var modal = document.getElementById('readyModal');
+  var go = document.getElementById('goBtn');
+  if (!modal || !go || !go.addEventListener) return;
+  go.addEventListener('click', function(){
+    sndUnlock();
+    // Ding right away, while the tap is fresh — this is the tone that
+    // wakes the engine and keeps it awake for the mount blip that
+    // follows.
+    try { sndScore(); } catch (e){}
+    modal.style.display = 'none';
+  });
+})();
+
 function buildLevel(){
   groundY = H - 44;
   const spacing = Math.max(96, Math.min(288, Math.round((H - 170) / 4.4)));
@@ -1426,6 +1579,19 @@ function clearTouch(e){
 }
 canvas.addEventListener('touchend', clearTouch);
 canvas.addEventListener('touchcancel', clearTouch);
+// Audio unlocks on every gesture — touchstart, pointerdown, pointerup,
+// touchend, and click. In this viewer (iOS WKWebView) a canvas
+// touch/pointer gesture alone doesn't count as the unlock (the context
+// stays suspended), but the `click` that follows a drag does — and the
+// Get Ready GO! button is the reliable unlock (a real button press).
+// Unlocking on all of them covers held-down play (no click yet) and the
+// completed tap. A click fires after a drag too (touch-action:none).
+// (Guarded: the test harness's document stub has no addEventListener.)
+canvas.addEventListener('touchstart', function(){ sndUnlock(); }, { passive: true });
+canvas.addEventListener('pointerdown', function(){ sndUnlock(); });
+canvas.addEventListener('pointerup', function(){ sndUnlock(); });
+canvas.addEventListener('touchend', function(){ sndUnlock(); });
+if (document.addEventListener) document.addEventListener('click', function(){ sndUnlock(); });
 
 // ---------- update ----------
 let last = performance.now();
@@ -1518,6 +1684,7 @@ function tick(now){
           S.rampOrigin = S.surface; S.surface = { type: 'finger' }; S.rampDir = S.dir; S.x = nx; S.y = yAt; S.rampFinger = S.finger; S.rampSlot = (seg === S.keptSeg) ? 1 : ((seg === S.keptSeg2) ? 2 : 'live');
           S.steerDone = true;
           { const g = lineWillLand(seg); lastGreen = g; logEvent('MOUNT', 'foot=(' + Math.round(nx) + ',' + Math.round(yAt) + ') dir=' + S.dir + ' from=' + platStr(S.rampOrigin) + ' seg=' + segStr(seg) + ' green=' + g); }
+          sndMount();
         }
       }
 
